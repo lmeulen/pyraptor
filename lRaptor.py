@@ -160,7 +160,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
                 else:
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
-    logger.info('         Evaluations    : {}'.format(i))
+    logger.debug('         Evaluations    : {}'.format(i))
     return extended_time_to_stops, new_stops, filter_trips
 
 
