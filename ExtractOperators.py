@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import sys
+
 GTFSDIR = 'gtfs-nl'
 OUTPUTDIR = 'gtfs-extracted'
 

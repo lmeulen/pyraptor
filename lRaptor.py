@@ -76,6 +76,20 @@ def stop_to_str(loc):
     return s
 
 
+def str2bool(v):
+    """
+    Convert a string to bool, function for the argument parser
+    :param v: string representing true or false value in any format
+    :return: bool
+    """
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 24):
     """Takes a stop and departure time and get associated trip ids.
        The forward parameter limits the time frame starting at the departure time.
@@ -309,6 +323,7 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
         reached_stops[from_stop] = 0
         new_stops_total.append(from_stop)
     logger.debug('Starting from IDS : '.format(str(reached_stops)))
+
     for k in range(1, iterations + 1):
         logger.info("Analyzing possibilities round {}".format(k))
 
@@ -333,8 +348,10 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
 
         logger.info("\t{} stops to evaluate in next round".format(len(new_stops_total)))
 
+        # Store the results for this round
         k_results[k] = reached_stops
 
+    # Determine the best destionation ID, destination is a platform.
     dest_id = final_destination(to_stops, reached_stops)
     if dest_id != '':
         logger.info("Destination code   : {} ".format(dest_id))
@@ -342,17 +359,6 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
     else:
         logger.info("Destination unreachable with given parameters")
     return k_results
-
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 if __name__ == "__main__":
@@ -383,5 +389,5 @@ if __name__ == "__main__":
 
     time_table_NS = read_timetable()
 
-    result = perform_lraptor(time_table_NS, DEPARTURE, ARRIVAL, DEP_TIME, 1)
+    result = perform_lraptor(time_table_NS, DEPARTURE, ARRIVAL, DEP_TIME, ROUNDS)
     res = export_results(result, time_table_NS, 'results_{date:%Y%m%d_%H%M%S}.csv'.format(date=datetime.now()))
