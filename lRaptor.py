@@ -90,7 +90,7 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 24):
+def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 24, filter=None):
     """Takes a stop and departure time and get associated trip ids.
        The forward parameter limits the time frame starting at the departure time.
        Default framesize is 60 minutes
@@ -99,12 +99,15 @@ def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 
 
     mask_1 = timetable.stop_times.stop_id == stop_id
     mask_2 = timetable.stop_times.departure_time.between(departure_time, departure_time + forward)
+    mask_3 = True
+    if filter:
+        mask_3 = ~timetable.stop_times.trip_id.isin(filter)
     # extract the list of qualifying trip ids
-    potential_trips = timetable.stop_times[mask_1 & mask_2].trip_id.unique()
+    potential_trips = timetable.stop_times[mask_1 & mask_2 & mask_3].trip_id.unique()
     return potential_trips.tolist()
 
 
-def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time):
+def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, filter_trips):
     """ Iterator through the stops reachable and add all new reachable stops
         by following all trips from the reached stations. Trips are only followed
         in the direction of travel and beyond already added points
@@ -112,18 +115,24 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time):
     :param current_ids: Current stops reached
     :param time_to_stops_orig: List of departure locations (e.g. multiple platforms for one station)
     :param departure_time: Departure time
+    :param filter_trips: trips to filter from the list of potential trips
     """
 
     # prevent upstream mutation of dictionary
     extended_time_to_stops = copy(time_to_stops_orig)
     new_stops = []
 
+    baseline_filter_trips = copy(filter_trips)
+    logger.debug('        Filtered  trips: {}'.format(len(baseline_filter_trips)))
+    filter_trips = []
+    i = 0
     for ref_stop_id in current_ids:
         # how long it took to get to the stop so far (0 for start node)
         baseline_cost = extended_time_to_stops[ref_stop_id]
-
         # get list of all trips associated with this stop
-        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time)
+        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time, filter=baseline_filter_trips)
+        filter_trips.extend(reachable_trips)
+        filter_trips = list(set(filter_trips))
         for potential_trip in reachable_trips:
 
             # get all the stop time arrivals for that trip
@@ -140,7 +149,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time):
             # for all following stops, calculate time to reach
             arrivals_zip = zip(stop_times_after.arrival_time, stop_times_after.stop_id)
             for arrive_time, arrive_stop_id in arrivals_zip:
-
+                i += 1
                 # time to reach is diff from start time to arrival (plus any baseline cost)
                 arrive_time_adjusted = arrive_time - departure_time + baseline_cost
 
@@ -151,8 +160,8 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time):
                 else:
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
-
-    return extended_time_to_stops, new_stops
+    logger.info('         Evaluations    : {}'.format(i))
+    return extended_time_to_stops, new_stops, filter_trips
 
 
 def add_transfer_time(timetable, current_ids, time_to_stops_orig, transfer_cost=TRANSFER_COST):
@@ -319,6 +328,7 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
     k_results = {}
     reached_stops = {}
     new_stops_total = []
+    filter_trips = []
     for from_stop in from_stops:
         reached_stops[from_stop] = 0
         new_stops_total.append(from_stop)
@@ -333,7 +343,8 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
 
         # update time to stops calculated based on stops accessible
         t = time.perf_counter()
-        reached_stops, new_stops_travel = traverse_trips(time_table, stops_to_evaluate, reached_stops, dep_secs)
+        reached_stops, new_stops_travel, filter_trips = \
+            traverse_trips(time_table, stops_to_evaluate, reached_stops, dep_secs, filter_trips)
         logger.info("    Travel stops  calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.info("    {} stops added".format(len(new_stops_travel)))
 
@@ -346,7 +357,7 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
 
         new_stops_total = set(new_stops_travel).union(new_stops_transfer)
 
-        logger.info("\t{} stops to evaluate in next round".format(len(new_stops_total)))
+        logger.info("    {} stops to evaluate in next round".format(len(new_stops_total)))
 
         # Store the results for this round
         k_results[k] = reached_stops
