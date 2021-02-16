@@ -6,7 +6,7 @@ Project to implement a Raptor implementation in Python. Source data is GTFS.
 Two applications:
 
 - ExtractOperators.py - Extract the time table information for one operator from a GTFS dataset
-- iRaptor.py - Perform the RAPTOR analysis
+- lRaptor.py - Perform the RAPTOR analysis
 
 Example usage:
 
