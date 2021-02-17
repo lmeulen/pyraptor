@@ -138,7 +138,6 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
 
             # get all the stop time arrivals for that trip
             stop_times_trip = timetable.stop_times[timetable.stop_times.trip_id == potential_trip]
-            stop_times_trip = stop_times_trip.sort_values(by="stop_sequence")
 
             # get the "hop on" point
             from_here_subset = stop_times_trip[stop_times_trip.stop_id == ref_stop_id]
