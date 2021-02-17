@@ -132,7 +132,6 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
         # get list of all trips associated with this stop
         reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time, tripfilter=None)
         filter_trips.extend(reachable_trips)
-        filter_trips = list(set(filter_trips))
         for potential_trip in reachable_trips:
 
             # get all the stop time arrivals for that trip
@@ -161,6 +160,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
     logger.debug('         Evaluations    : {}'.format(i))
+    filter_trips = list(set(filter_trips))
     return extended_time_to_stops, new_stops, filter_trips
 
 
