@@ -12,6 +12,8 @@ from dataclasses import dataclass
 # Default transfer time is 3 minutes
 TRANSFER_COST = (3 * 60)
 
+MAX_TRAVEL_TIME = 999999
+
 # create logger
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -148,12 +150,13 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
                 arrive_time_adjusted = arrive_time - departure_time + baseline_cost
 
                 # only update if does not exist yet or is faster
-                if arrive_stop_id in extended_time_to_stops:
-                    if extended_time_to_stops[arrive_stop_id] > arrive_time_adjusted:
-                        extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
-                else:
+                old_value = extended_time_to_stops.get(arrive_stop_id, MAX_TRAVEL_TIME)
+                if old_value == MAX_TRAVEL_TIME:
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
+                if arrive_time_adjusted < old_value:
+                    extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
+
     logger.debug('         Evaluations    : {}'.format(i))
     filter_trips = list(set(filter_trips))
     return extended_time_to_stops, new_stops, filter_trips
@@ -181,13 +184,13 @@ def add_transfer_time(timetable, current_ids, time_to_stops_orig, transfer_cost=
         arrive_time_adjusted = extended_time_to_stops[stop_id] + transfer_cost
 
         # only update if currently inaccessible or faster than currrent option
-        for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id']:
-            if arrive_stop_id in extended_time_to_stops:
-                if extended_time_to_stops[arrive_stop_id] > arrive_time_adjusted:
-                    extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
-            else:
+        for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
+            old_value = extended_time_to_stops.get(arrive_stop_id, MAX_TRAVEL_TIME)
+            if old_value == MAX_TRAVEL_TIME:
                 extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                 new_stops.append(arrive_stop_id)
+            if arrive_time_adjusted < old_value:
+                extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
 
     return extended_time_to_stops, new_stops
 
