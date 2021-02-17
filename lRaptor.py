@@ -90,20 +90,20 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 24, filter=None):
+def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 6, tripfilter=None):
     """Takes a stop and departure time and get associated trip ids.
        The forward parameter limits the time frame starting at the departure time.
        Default framesize is 60 minutes
        Times asre specified in seconds sincs midnight
     """
 
-    mask_1 = timetable.stop_times.stop_id == stop_id
-    mask_2 = timetable.stop_times.departure_time.between(departure_time, departure_time + forward)
+    mask_1 = timetable.stop_times_filtered.stop_id == stop_id
+    mask_2 = timetable.stop_times_filtered.departure_time.between(departure_time, departure_time + forward)
     mask_3 = True
-    if filter:
-        mask_3 = ~timetable.stop_times.trip_id.isin(filter)
+    if tripfilter:
+        mask_3 = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
     # extract the list of qualifying trip ids
-    potential_trips = timetable.stop_times[mask_1 & mask_2 & mask_3].trip_id.unique()
+    potential_trips = timetable.stop_times_filtered[mask_1 & mask_2 & mask_3].trip_id.unique()
     return potential_trips.tolist()
 
 
@@ -130,7 +130,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
         # how long it took to get to the stop so far (0 for start node)
         baseline_cost = extended_time_to_stops[ref_stop_id]
         # get list of all trips associated with this stop
-        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time, filter=baseline_filter_trips)
+        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time, tripfilter=None)
         filter_trips.extend(reachable_trips)
         filter_trips = list(set(filter_trips))
         for potential_trip in reachable_trips:
@@ -329,6 +329,7 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
     reached_stops = {}
     new_stops_total = []
     filter_trips = []
+    time_table.stop_times_filtered = time_table.stop_times
     for from_stop in from_stops:
         reached_stops[from_stop] = 0
         new_stops_total.append(from_stop)
@@ -361,6 +362,8 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
 
         # Store the results for this round
         k_results[k] = reached_stops
+        mask = ~time_table.stop_times_filtered.trip_id.isin(filter_trips)
+        time_table.stop_times_filtered = time_table.stop_times_filtered[mask]
 
     # Determine the best destionation ID, destination is a platform.
     dest_id = final_destination(to_stops, reached_stops)
@@ -399,6 +402,7 @@ if __name__ == "__main__":
     ROUNDS = args.rounds
 
     time_table_NS = read_timetable()
-
+    ts = time.perf_counter()
     result = perform_lraptor(time_table_NS, DEPARTURE, ARRIVAL, DEP_TIME, ROUNDS)
     res = export_results(result, time_table_NS, 'results_{date:%Y%m%d_%H%M%S}.csv'.format(date=datetime.now()))
+    logger.debug('Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
