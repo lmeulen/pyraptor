@@ -130,7 +130,8 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
         # how long it took to get to the stop so far (0 for start node)
         baseline_cost = extended_time_to_stops[ref_stop_id]
         # get list of all trips associated with this stop
-        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time, tripfilter=None)
+        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time + baseline_cost,
+                                                forward=3600, tripfilter=None)
         filter_trips.extend(reachable_trips)
         for potential_trip in reachable_trips:
 
