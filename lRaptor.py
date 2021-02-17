@@ -1,11 +1,12 @@
 import os
+import io
 import sys
 import pandas as pd
 import time
 import logging
-from datetime import datetime
-import io
 import argparse
+import cProfile
+from datetime import datetime
 from copy import copy
 from dataclasses import dataclass
 
@@ -27,6 +28,7 @@ class Timetable:
     trips = None
     calendar = None
     stop_times = None
+    stop_times_filtered = None
     stops = None
 
 
@@ -140,10 +142,9 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
 
             # get the "hop on" point
             from_here_subset = stop_times_trip[stop_times_trip.stop_id == ref_stop_id]
-            from_here = from_here_subset.head(1).squeeze()
-
+            from_here = from_here_subset.iloc[0]['stop_sequence']
             # get all following stops
-            stop_times_after = stop_times_trip[stop_times_trip.stop_sequence > from_here.stop_sequence]
+            stop_times_after = stop_times_trip[stop_times_trip.stop_sequence > from_here]
 
             # for all following stops, calculate time to reach
             arrivals_zip = zip(stop_times_after.arrival_time, stop_times_after.stop_id)
@@ -253,6 +254,8 @@ def read_timetable():
         tt.stop_times.arrival_time = tt.stop_times.apply(lambda x: parse_time(x['arrival_time']), axis=1)
         tt.stop_times.departure_time = tt.stop_times.apply(lambda x: parse_time(x['departure_time']), axis=1)
         tt.stop_times.stop_id = tt.stop_times.stop_id.astype(str)
+        tt.stop_times_filtered = None
+
         tt.stops = pd.read_csv(os.path.join(GTFSDIR, 'stops.txt'))
         # Filter out the general station codes
         tt.stops = tt.stops[~tt.stops.stop_id.str.startswith('stoparea')]
@@ -403,6 +406,10 @@ if __name__ == "__main__":
 
     time_table_NS = read_timetable()
     ts = time.perf_counter()
+    pr = cProfile.Profile()
+    # pr.enable()
     result = perform_lraptor(time_table_NS, DEPARTURE, ARRIVAL, DEP_TIME, ROUNDS)
+    # pr.disable()
     res = export_results(result, time_table_NS, 'results_{date:%Y%m%d_%H%M%S}.csv'.format(date=datetime.now()))
     logger.debug('Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
+    # pr.print_stats(sort="calls")
