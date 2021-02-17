@@ -5,7 +5,6 @@ import pandas as pd
 import time
 import logging
 import argparse
-import cProfile
 from datetime import datetime
 from copy import copy
 from dataclasses import dataclass
@@ -35,9 +34,7 @@ class Timetable:
 def parse_time(time_str):
     """
     Convert hh:mm:ss to seconds since midnight
-S
     """
-
     h, m, s = time_str.strip().split(":")
     return int(h) * 3600 + int(m) * 60 + int(s)
 
@@ -47,7 +44,6 @@ def parse_sec_to_time(scnds):
     Convert hh:mm:ss to seconds since midnight
     :param scnds:
     """
-
     h = int(scnds / 3600)
     m = int((scnds % 3600) / 60)
     s = int(scnds % 60)
@@ -140,8 +136,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, departure_time, f
             stop_times_trip = timetable.stop_times[timetable.stop_times.trip_id == potential_trip]
 
             # get the "hop on" point
-            from_here_subset = stop_times_trip[stop_times_trip.stop_id == ref_stop_id]
-            from_here = from_here_subset.iloc[0]['stop_sequence']
+            from_here = stop_times_trip[stop_times_trip.stop_id == ref_stop_id].iloc[0]['stop_sequence']
             # get all following stops
             stop_times_after = stop_times_trip[stop_times_trip.stop_sequence > from_here]
 
@@ -232,7 +227,7 @@ def final_destination(to_ids, reached_ids):
     return final_id
 
 
-def read_timetable():
+def read_timetable(gtfs_dir, use_cache):
     """
     Read the timetable information from either cache or GTFS directory
     Global parameter READ_GTFS determines cache or reading original GTFS files
@@ -241,21 +236,25 @@ def read_timetable():
 
     start_time = time.perf_counter()
     tt = Timetable()
-    if READ_GTFS:
-        tt.agencies = pd.read_csv(os.path.join(GTFSDIR, 'agency.txt'))
-        tt.routes = pd.read_csv(os.path.join(GTFSDIR, 'routes.txt'))
-        tt.trips = pd.read_csv(os.path.join(GTFSDIR, 'trips.txt'))
+    if not use_cache:
+        tt.agencies = pd.read_csv(os.path.join(gtfs_dir, 'agency.txt'))
+
+        tt.routes = pd.read_csv(os.path.join(gtfs_dir, 'routes.txt'))
+
+        tt.trips = pd.read_csv(os.path.join(gtfs_dir, 'trips.txt'))
         tt.trips.trip_short_name = tt.trips.trip_short_name.astype(int)
         tt.trips.shape_id = tt.trips.shape_id.astype('Int64')
-        tt.calendar = pd.read_csv(os.path.join(GTFSDIR, 'calendar_dates.txt'))
+
+        tt.calendar = pd.read_csv(os.path.join(gtfs_dir, 'calendar_dates.txt'))
         tt.calendar.date = tt.calendar.date.astype(str)
-        tt.stop_times = pd.read_csv(os.path.join(GTFSDIR, 'stop_times.txt'))
+
+        tt.stop_times = pd.read_csv(os.path.join(gtfs_dir, 'stop_times.txt'))
         tt.stop_times.arrival_time = tt.stop_times.apply(lambda x: parse_time(x['arrival_time']), axis=1)
         tt.stop_times.departure_time = tt.stop_times.apply(lambda x: parse_time(x['departure_time']), axis=1)
         tt.stop_times.stop_id = tt.stop_times.stop_id.astype(str)
         tt.stop_times_filtered = None
 
-        tt.stops = pd.read_csv(os.path.join(GTFSDIR, 'stops.txt'))
+        tt.stops = pd.read_csv(os.path.join(gtfs_dir, 'stops.txt'))
         # Filter out the general station codes
         tt.stops = tt.stops[~tt.stops.stop_id.str.startswith('stoparea')]
 
@@ -302,7 +301,6 @@ def export_results(k, tt, filename):
             datastring += (str(i) + ',' + str(destination) + ',' + str(name) + ',' + str(platform) + ',' +
                            str(traveltime) + '\n')
     df = pd.read_csv(io.StringIO(datastring), sep=",")
-    df.travel_time = df.travel_time
     df = df[['round', 'stop_name', 'travel_time']].groupby(['round', 'stop_name']).min().sort_values('travel_time')
     df.travel_time = df.apply(lambda x: parse_sec_to_time(x.travel_time), axis=1)
     df.to_csv(filename)
@@ -378,7 +376,6 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
 
 
 if __name__ == "__main__":
-
     # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "08:30:00" --r 1 --c True
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Input directory")
@@ -396,19 +393,8 @@ if __name__ == "__main__":
     logger.debug('Rounds         : ' + str(args.rounds))
     logger.debug('Cached GTFS    : ' + str(args.cache))
 
-    GTFSDIR = args.input
-    READ_GTFS = not args.cache
-    DEPARTURE = args.startpoint
-    ARRIVAL = args.endpoint
-    DEP_TIME = args.departure
-    ROUNDS = args.rounds
-
-    time_table_NS = read_timetable()
+    time_table_NS = read_timetable(args.input, args.cache)
     ts = time.perf_counter()
-    pr = cProfile.Profile()
-    # pr.enable()
-    result = perform_lraptor(time_table_NS, DEPARTURE, ARRIVAL, DEP_TIME, ROUNDS)
-    # pr.disable()
+    result = perform_lraptor(time_table_NS, args.startpoint, args.endpoint, args.departure, args.rounds)
     res = export_results(result, time_table_NS, 'results_{date:%Y%m%d_%H%M%S}.csv'.format(date=datetime.now()))
     logger.debug('Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
-    # pr.print_stats(sort="calls")
