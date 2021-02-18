@@ -14,6 +14,10 @@ TRANSFER_COST = (3 * 60)
 
 MAX_TRAVEL_TIME = 999999
 
+T6H = 6 * 60 * 60
+T3M = 3 * 60
+T30M = 30 * 60
+
 # create logger
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -333,7 +337,8 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
     reached_stops = {}
     new_stops_total = []
     filter_trips = []
-    time_table.stop_times_filtered = time_table.stop_times
+    mask = time_table.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
+    time_table.stop_times_filtered = time_table.stop_times[mask]
     for from_stop in from_stops:
         reached_stops[from_stop] = 0
         new_stops_total.append(from_stop)
