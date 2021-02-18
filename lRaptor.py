@@ -25,7 +25,8 @@ ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger.addHandler(ch)
 
 # Algorithm log
-evaluations = []
+# evaluations = []
+
 
 @dataclass
 class Timetable:
@@ -119,7 +120,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
     :param timetable: Timetable data
     :param current_ids: Current stops reached
     :param time_to_stops_orig: List of departure locations (e.g. multiple platforms for one station)
-    :apram last_leg_orig: List of last leg to reached stations
+    :param last_leg_orig: List of last leg to reached stations
     :param departure_time: Departure time
     :param filter_trips: trips to filter from the list of potential trips
     """
@@ -154,7 +155,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
             arrivals_zip = zip(stop_times_after.arrival_time, stop_times_after.stop_id)
             for arrive_time, arrive_stop_id in arrivals_zip:
                 i += 1
-                evaluations.append((potential_trip, ref_stop_id, arrive_stop_id, arrive_time))
+                # evaluations.append((potential_trip, ref_stop_id, arrive_stop_id, arrive_time))
                 # time to reach is diff from start time to arrival (plus any baseline cost)
                 arrive_time_adjusted = arrive_time - departure_time + baseline_cost
 
@@ -409,17 +410,36 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
     return k_results, dest_id, reached_stops_last_leg
 
 
-def reconstruct_journey(time_table, destination, legs_list):
+def reconstruct_journey(destination, legs_list):
     j = []
-    prev = 0
     current = destination
     while current != '':
-        d = time_table.stops[time_table.stops.stop_id == current].stop_name.values[0]
         t = legs_list[current]
         j.append((t[1], t[0], current))
         current = t[1]
     j.reverse()
     return j
+
+
+def print_journey(j, tt):
+    """
+    Print the given journey to logger info
+    :param j: journey
+    :param tt: timetable
+    :return: -
+    """
+    logger.info('Journey:')
+    for leg in j:
+        if leg[1] != 0:
+            frm = tt.stops[tt.stops.stop_id == leg[0]].stop_name.values[0]
+            to = tt.stops[tt.stops.stop_id == leg[2]].stop_name.values[0]
+            tr = tt.trips[tt.trips.trip_id == leg[1]].trip_short_name.values[0]
+            dep = tt.stop_times[(tt.stop_times.stop_id == leg[0]) &
+                                (tt.stop_times.trip_id == leg[1])].departure_time.values[0]
+            arr = tt.stop_times[(tt.stop_times.stop_id == leg[2]) &
+                                (tt.stop_times.trip_id == leg[1])].arrival_time.values[0]
+            logger.info(str(parse_sec_to_time(dep)) + " " + frm.ljust(20) + ' TO ' +
+                        str(parse_sec_to_time(arr)) + " " + to.ljust(20) + ' WITH ' + str(tr))
 
 
 def parse_arguments():
@@ -454,5 +474,5 @@ if __name__ == "__main__":
 
     traveltimes, last_legs = export_results(traveltimes, legs, time_table_NS)
 
-    journey = reconstruct_journey(time_table_NS, final_dest, legs)
-    logger.info('Journey : ' + str(journey))
+    journey = reconstruct_journey(final_dest, legs)
+    print_journey(journey, time_table_NS)
