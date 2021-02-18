@@ -12,11 +12,10 @@ from dataclasses import dataclass
 # Default transfer time is 3 minutes
 TRANSFER_COST = (3 * 60)
 
-MAX_TRAVEL_TIME = 999999
-
+T24H = 24 * 60 * 60
 T6H = 6 * 60 * 60
-T3M = 3 * 60
 T30M = 30 * 60
+T3M = 3 * 60
 
 # create logger
 logger = logging.getLogger()
@@ -160,8 +159,8 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
                 arrive_time_adjusted = arrive_time - departure_time + baseline_cost
 
                 # only update if does not exist yet or is faster
-                old_value = extended_time_to_stops.get(arrive_stop_id, MAX_TRAVEL_TIME)
-                if old_value == MAX_TRAVEL_TIME:
+                old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
+                if old_value == T24H:
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                     extended_last_leg[arrive_stop_id] = (potential_trip, ref_stop_id)
                     new_stops.append(arrive_stop_id)
@@ -199,8 +198,8 @@ def add_transfer_time(timetable, current_ids, time_to_stops_orig, last_leg_orig,
 
         # only update if currently inaccessible or faster than currrent option
         for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
-            old_value = extended_time_to_stops.get(arrive_stop_id, MAX_TRAVEL_TIME)
-            if old_value == MAX_TRAVEL_TIME:
+            old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
+            if old_value == T24H:
                 extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                 extended_last_leg[arrive_stop_id] = (0, stop_id)
                 new_stops.append(arrive_stop_id)
@@ -299,16 +298,16 @@ def read_timetable(gtfs_dir, use_cache):
     return tt
 
 
-def export_results(k, tt, filename):
+def export_results(k, fd, tt):
     """
     Export results to a CSV file with stations and traveltimes (per iteration)
     :param k: datastructure with results per iteration
+    :param fd: Final destination last leg
     :param tt: Timetable
-    :param filename:  Filename
     :return: DataFrame with the results exported
     """
-
-    logger.debug('Export results to {}'.format(filename))
+    filename1 = 'res_{date:%Y%m%d_%H%M%S}_traveltime.csv'.format(date=datetime.now())
+    logger.debug('Export results to {}'.format(filename1))
     datastring = 'round,stop_id,stop_name,platform_code,travel_time\n'
     for i in list(k.keys()):
         locations = k[i]
@@ -322,8 +321,20 @@ def export_results(k, tt, filename):
     df = pd.read_csv(io.StringIO(datastring), sep=",")
     df = df[['round', 'stop_name', 'travel_time']].groupby(['round', 'stop_name']).min().sort_values('travel_time')
     df.travel_time = df.apply(lambda x: parse_sec_to_time(x.travel_time), axis=1)
-    df.to_csv(filename)
-    return df
+    df.to_csv(filename1)
+
+    filename2 = 'res_{date:%Y%m%d_%H%M%S}_last_legs.csv'.format(date=datetime.now())
+    logger.debug('Export results to {}'.format(filename2))
+    datastring = 'from_id,trip_id,stop_id\n'
+    for i in list(fd.keys()):
+        frm = i
+        via = fd[i][0]
+        to = fd[i][0]
+        datastring += (str(frm) + ',' + str(via) + ',' + str(to) + '\n')
+    df2 = pd.read_csv(io.StringIO(datastring), sep=",")
+    df2.to_csv(filename2)
+
+    return df, df2
 
 
 def perform_lraptor(time_table, departure_name, arrival_name, departure_time, iterations):
@@ -369,7 +380,7 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
         reached_stops, reached_stops_last_leg, new_stops_travel, filter_trips = \
             traverse_trips(time_table, stops_to_evaluate, reached_stops, reached_stops_last_leg, dep_secs, filter_trips)
         logger.info("    Travel stops  calculated in {:0.4f} seconds".format(time.perf_counter() - t))
-        logger.info("    {} stops added".format(len(new_stops_travel)))
+        logger.debug("    {} stops added".format(len(new_stops_travel)))
 
         # now add footpath transfers and update
         t = time.perf_counter()
@@ -411,8 +422,8 @@ def reconstruct_journey(time_table, destination, legs_list):
     return j
 
 
-if __name__ == "__main__":
-    # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "08:30:00" --r 1 --c True
+def parse_arguments():
+    # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "08:30:00" --r 2 --c True
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Input directory")
     parser.add_argument("-s", "--startpoint", type=str, help="Startpoint of the journey")
@@ -420,21 +431,28 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--departure", type=str, help="Departure time hh:mm:ss")
     parser.add_argument("-r", "--rounds", type=int, help="Number of rounds to execute the RAPTOR algorithm")
     parser.add_argument("-c", "--cache", type=str2bool, default=False, help="Use cached GTFS")
-    args = parser.parse_args(sys.argv[1:])
+    arguments = parser.parse_args(sys.argv[1:])
 
-    logger.debug('Input directoy : ' + args.input)
-    logger.debug('Start point    : ' + args.startpoint)
-    logger.debug('End point      : ' + args.endpoint)
-    logger.debug('Departure time : ' + args.departure)
-    logger.debug('Rounds         : ' + str(args.rounds))
-    logger.debug('Cached GTFS    : ' + str(args.cache))
-    args.rounds = 2
+    logger.debug('Input directoy : ' + arguments.input)
+    logger.debug('Start point    : ' + arguments.startpoint)
+    logger.debug('End point      : ' + arguments.endpoint)
+    logger.debug('Departure time : ' + arguments.departure)
+    logger.debug('Rounds         : ' + str(arguments.rounds))
+    logger.debug('Cached GTFS    : ' + str(arguments.cache))
+    return arguments
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
     time_table_NS = read_timetable(args.input, args.cache)
+
     ts = time.perf_counter()
     traveltimes, final_dest, legs = perform_lraptor(time_table_NS, args.startpoint, args.endpoint,
                                                     args.departure, args.rounds)
-    res = export_results(traveltimes, time_table_NS, 'results_{date:%Y%m%d_%H%M%S}.csv'.format(date=datetime.now()))
     logger.debug('Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
+
+    traveltimes, last_legs = export_results(traveltimes, legs, time_table_NS)
 
     journey = reconstruct_journey(time_table_NS, final_dest, legs)
     logger.info('Journey : ' + str(journey))
