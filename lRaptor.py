@@ -35,7 +35,8 @@ class Timetable:
     stop_times = None
     stop_times_filtered = None
     stops = None
-
+    station2stops = None
+    stop_times_for_trips = None
 
 def parse_time_to_sec(time_str):
     """
@@ -103,13 +104,14 @@ def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 
        Times asre specified in seconds sincs midnight
     """
 
-    mask_1 = timetable.stop_times_filtered.stop_id == stop_id
-    mask_2 = timetable.stop_times_filtered.departure_time.between(departure_time, departure_time + forward)
+    mask_1 = timetable.stop_times_filtered.index == stop_id
+    potential_trips = timetable.stop_times_filtered[mask_1]
+    mask_2 = potential_trips.departure_time.between(departure_time, departure_time + forward)
     mask_3 = True
     if tripfilter:
-        mask_3 = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
+        mask_3 = ~potential_trips.trip_id.isin(tripfilter)
     # extract the list of qualifying trip ids
-    potential_trips = timetable.stop_times_filtered[mask_1 & mask_2 & mask_3].trip_id.unique()
+    potential_trips = potential_trips[mask_2 & mask_3].trip_id.unique()
     return potential_trips.tolist()
 
 
@@ -144,7 +146,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
         for potential_trip in reachable_trips:
 
             # get all the stop time arrivals for that trip
-            stop_times_trip = timetable.stop_times[timetable.stop_times.trip_id == potential_trip]
+            stop_times_trip = timetable.stop_times_for_trips[timetable.stop_times_for_trips.index == potential_trip]
 
             # get the "hop on" point
             from_here = stop_times_trip[stop_times_trip.stop_id == ref_stop_id].iloc[0]['stop_sequence']
@@ -191,13 +193,14 @@ def add_transfer_time(timetable, current_ids, time_to_stops_orig, last_leg_orig,
 
     # add in transfers to other platforms
     for stop_id in current_ids:
-        stoparea = timetable.stops[timetable.stops.stop_id == stop_id]['parent_station'].values[0]
+        stoparea = timetable.stops[timetable.stops.index == stop_id].iloc[0]['parent_station']
 
         # time to reach new nearby stops is the transfer cost plus arrival at last stop
         arrive_time_adjusted = extended_time_to_stops[stop_id] + transfer_cost
 
         # only update if currently inaccessible or faster than currrent option
-        for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
+        # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
+        for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
             old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
             if old_value == T24H:
                 extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
@@ -362,7 +365,10 @@ def perform_lraptor(time_table, departure_name, arrival_name, departure_time, it
     new_stops_total = []
     filter_trips = []
     mask = time_table.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
-    time_table.stop_times_filtered = time_table.stop_times[mask]
+    time_table.stop_times_filtered = time_table.stop_times[mask].copy()
+    time_table.stop_times_filtered['stop_id2'] = time_table.stop_times_filtered.stop_id
+    time_table.stop_times_filtered.set_index('stop_id2', inplace=True)
+
     for from_stop in from_stops:
         reached_stops[from_stop] = 0
         reached_stops_last_leg[from_stop] = (0, '')
@@ -475,10 +481,33 @@ def parse_arguments():
     return arguments
 
 
+def clean_timetable(tt):
+    tt.agencies = None
+    tt.routes = None
+    tt.calendar = None
+    tt.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
+                  axis=1, inplace=True)
+    tt.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
+    tt.stop_times_for_trips = tt.stop_times
+    tt.stop_times['stop_id2'] = tt.stop_times.stop_id
+    tt.stop_times.set_index('stop_id2', inplace=True)
+    tt.stop_times_for_trips['trip_id2'] = tt.stop_times_for_trips.trip_id
+    tt.stop_times_for_trips.set_index('trip_id2', inplace=True)
+
+    tt.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
+    tt.stops['stop_id2'] = tt.stops.stop_id
+    tt.stops.set_index('stop_id2', inplace=True)
+
+    tt.station2stops = tt.stops[['parent_station', 'stop_id']].set_index('parent_station')
+
+    return tt
+
+
 if __name__ == "__main__":
     args = parse_arguments()
 
     time_table_NS = read_timetable(args.input, args.cache)
+    time_table_NS = clean_timetable(time_table_NS)
 
     ts = time.perf_counter()
     traveltimes, final_dest, legs = perform_lraptor(time_table_NS, args.startpoint, args.endpoint,
