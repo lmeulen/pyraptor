@@ -25,9 +25,6 @@ ch = logging.StreamHandler()
 ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger.addHandler(ch)
 
-# Algorithm log
-# evaluations = []
-
 
 @dataclass
 class Timetable:
@@ -40,9 +37,10 @@ class Timetable:
     stops = None
 
 
-def parse_time(time_str):
+def parse_time_to_sec(time_str):
     """
     Convert hh:mm:ss to seconds since midnight
+    :param time_str: String in format hh:mm:ss
     """
     h, m, s = time_str.strip().split(":")
     return int(h) * 3600 + int(m) * 60 + int(s)
@@ -51,7 +49,8 @@ def parse_time(time_str):
 def parse_sec_to_time(scnds, show_sec=False):
     """
     Convert hh:mm:ss to seconds since midnight
-    :param scnds:
+    :param scnds: Seconds to translate to hh:mm:ss
+    :param show_sec, only show :ss if True
     """
     h = int(scnds / 3600)
     m = int((scnds % 3600) / 60)
@@ -156,7 +155,6 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
             arrivals_zip = zip(stop_times_after.arrival_time, stop_times_after.stop_id)
             for arrive_time, arrive_stop_id in arrivals_zip:
                 i += 1
-                # evaluations.append((potential_trip, ref_stop_id, arrive_stop_id, arrive_time))
                 # time to reach is diff from start time to arrival (plus any baseline cost)
                 arrive_time_adjusted = arrive_time - departure_time
 
@@ -220,7 +218,7 @@ def determine_parameters(timetable, start_name, end_name, departure_time):
     """
 
     # look at all trips from that stop that are after the depart time
-    departure = parse_time(departure_time)
+    departure = parse_time_to_sec(departure_time)
 
     # get all information, including the stop ids, for the start and end nodes
     from_loc = timetable.stops[timetable.stops.stop_name == start_name]['stop_id'].to_list()
@@ -276,8 +274,8 @@ def read_timetable(gtfs_dir, use_cache):
         tt.calendar.date = tt.calendar.date.astype(str)
 
         tt.stop_times = pd.read_csv(os.path.join(gtfs_dir, 'stop_times.txt'))
-        tt.stop_times.arrival_time = tt.stop_times.apply(lambda x: parse_time(x['arrival_time']), axis=1)
-        tt.stop_times.departure_time = tt.stop_times.apply(lambda x: parse_time(x['departure_time']), axis=1)
+        tt.stop_times.arrival_time = tt.stop_times.apply(lambda x: parse_time_to_sec(x['arrival_time']), axis=1)
+        tt.stop_times.departure_time = tt.stop_times.apply(lambda x: parse_time_to_sec(x['departure_time']), axis=1)
         tt.stop_times.stop_id = tt.stop_times.stop_id.astype(str)
         tt.stop_times_filtered = None
 
@@ -452,9 +450,9 @@ def print_journey(j, tt, departure_time):
     fdt = j[0] if j[0][1] != 0 else j[1]
     fdt = tt.stop_times[(tt.stop_times.stop_id == fdt[0]) &
                         (tt.stop_times.trip_id == fdt[1])].departure_time.values[0]
-    logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time(departure_time)),
-                                                                 parse_sec_to_time(arr - parse_time(departure_time)),
-                                                                 parse_sec_to_time(parse_time(departure_time))))
+    logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time_to_sec(departure_time)),
+                                                                 parse_sec_to_time(arr - parse_time_to_sec(departure_time)),
+                                                                 parse_sec_to_time(parse_time_to_sec(departure_time))))
 
 
 def parse_arguments():
