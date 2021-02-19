@@ -48,7 +48,7 @@ def parse_time(time_str):
     return int(h) * 3600 + int(m) * 60 + int(s)
 
 
-def parse_sec_to_time(scnds):
+def parse_sec_to_time(scnds, show_sec=False):
     """
     Convert hh:mm:ss to seconds since midnight
     :param scnds:
@@ -56,7 +56,7 @@ def parse_sec_to_time(scnds):
     h = int(scnds / 3600)
     m = int((scnds % 3600) / 60)
     s = int(scnds % 60)
-    return "{:02d}:{:02d}:{:02d}".format(h, m, s)
+    return "{:02d}:{:02d}:{:02d}".format(h, m, s) if show_sec else "{:02d}:{:02d}".format(h, m)
 
 
 def stop_time_to_str(stop):
@@ -452,10 +452,9 @@ def print_journey(j, tt, departure_time):
     fdt = j[0] if j[0][1] != 0 else j[1]
     fdt = tt.stop_times[(tt.stop_times.stop_id == fdt[0]) &
                         (tt.stop_times.trip_id == fdt[1])].departure_time.values[0]
-
     logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time(departure_time)),
                                                                  parse_sec_to_time(arr - parse_time(departure_time)),
-                                                                 departure_time))
+                                                                 parse_sec_to_time(parse_time(departure_time))))
 
 
 def parse_arguments():
