@@ -3,10 +3,11 @@ import pandas as pd
 import sys
 
 GTFSDIR = 'gtfs-nl'
-OUTPUTDIR = 'gtfs-extracted'
+OUTPUTDIR = 'gtfs-extracted-small'
 
 agencies_names = ['NS']
 
+trip_list = [7625, 7526]
 
 if __name__ == "__main__":
 
@@ -38,6 +39,8 @@ if __name__ == "__main__":
     print('Extracting Trips')
     trips = pd.read_csv(os.path.join(GTFSDIR, 'trips.txt'))
     trips = trips[trips.route_id.isin(route_ids)]
+    if trip_list:
+        trips = trips[trips.trip_short_name.isin(trip_list)]
     trip_ids = trips.trip_id.values
     service_ids = trips.service_id.values
     trips = trips[['route_id', 'service_id', 'trip_id', 'trip_headsign', 'trip_short_name',

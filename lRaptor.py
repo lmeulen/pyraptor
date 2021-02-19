@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 # Default transfer time is 3 minutes
 TRANSFER_COST = (3 * 60)
+SAVE_RESULTS = False
 
 T24H = 24 * 60 * 60
 T6H = 6 * 60 * 60
@@ -157,7 +158,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
                 i += 1
                 # evaluations.append((potential_trip, ref_stop_id, arrive_stop_id, arrive_time))
                 # time to reach is diff from start time to arrival (plus any baseline cost)
-                arrive_time_adjusted = arrive_time - departure_time + baseline_cost
+                arrive_time_adjusted = arrive_time - departure_time
 
                 # only update if does not exist yet or is faster
                 old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
@@ -255,7 +256,14 @@ def read_timetable(gtfs_dir, use_cache):
 
     start_time = time.perf_counter()
     tt = Timetable()
-    if not use_cache:
+    if use_cache & os.path.exists(os.path.join('timetable_cache', 'stop_times.pcl')):
+        tt.agencies = pd.read_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
+        tt.routes = pd.read_pickle(os.path.join('timetable_cache', 'routes.pcl'))
+        tt.trips = pd.read_pickle(os.path.join('timetable_cache', 'trips.pcl'))
+        tt.calendar = pd.read_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
+        tt.stop_times = pd.read_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
+        tt.stops = pd.read_pickle(os.path.join('timetable_cache', 'stops.pcl'))
+    else:
         tt.agencies = pd.read_csv(os.path.join(gtfs_dir, 'agency.txt'))
 
         tt.routes = pd.read_csv(os.path.join(gtfs_dir, 'routes.txt'))
@@ -283,13 +291,7 @@ def read_timetable(gtfs_dir, use_cache):
         tt.calendar.to_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
         tt.stop_times.to_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
         tt.stops.to_pickle(os.path.join('timetable_cache', 'stops.pcl'))
-    else:
-        tt.agencies = pd.read_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
-        tt.routes = pd.read_pickle(os.path.join('timetable_cache', 'routes.pcl'))
-        tt.trips = pd.read_pickle(os.path.join('timetable_cache', 'trips.pcl'))
-        tt.calendar = pd.read_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
-        tt.stop_times = pd.read_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
-        tt.stops = pd.read_pickle(os.path.join('timetable_cache', 'stops.pcl'))
+
     logger.info("Reading GTFS took {:0.4f} seconds".format(time.perf_counter() - start_time))
     logger.debug('Agencies  : {}'.format(len(tt.agencies)))
     logger.debug('Routes    : {}'.format(len(tt.routes)))
@@ -421,25 +423,39 @@ def reconstruct_journey(destination, legs_list):
     return j
 
 
-def print_journey(j, tt):
+def print_journey(j, tt, departure_time):
     """
     Print the given journey to logger info
     :param j: journey
     :param tt: timetable
+    :param departure_time: Original requested departure
     :return: -
     """
     logger.info('Journey:')
+    arr = departure_time
     for leg in j:
         if leg[1] != 0:
             frm = tt.stops[tt.stops.stop_id == leg[0]].stop_name.values[0]
+            frm_p = tt.stops[tt.stops.stop_id == leg[0]].platform_code.values[0]
             to = tt.stops[tt.stops.stop_id == leg[2]].stop_name.values[0]
+            to_p = tt.stops[tt.stops.stop_id == leg[2]].platform_code.values[0]
             tr = tt.trips[tt.trips.trip_id == leg[1]].trip_short_name.values[0]
+            trid = tt.trips[tt.trips.trip_id == leg[1]].trip_id.values[0]
             dep = tt.stop_times[(tt.stop_times.stop_id == leg[0]) &
                                 (tt.stop_times.trip_id == leg[1])].departure_time.values[0]
             arr = tt.stop_times[(tt.stop_times.stop_id == leg[2]) &
                                 (tt.stop_times.trip_id == leg[1])].arrival_time.values[0]
-            logger.info(str(parse_sec_to_time(dep)) + " " + frm.ljust(20) + ' TO ' +
-                        str(parse_sec_to_time(arr)) + " " + to.ljust(20) + ' WITH ' + str(tr))
+            logger.info(str(parse_sec_to_time(dep)) + " " + frm.ljust(20) + '(p. ' + frm_p.rjust(3) + ') TO ' +
+                        str(parse_sec_to_time(arr)) + " " + to.ljust(20) + '(p. ' + to_p.rjust(3) + ') WITH ' +
+                        str(tr) + ' (' + str(trid) + ')')
+
+    fdt = j[0] if j[0][1] != 0 else j[1]
+    fdt = tt.stop_times[(tt.stop_times.stop_id == fdt[0]) &
+                        (tt.stop_times.trip_id == fdt[1])].departure_time.values[0]
+
+    logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time(departure_time)),
+                                                                 parse_sec_to_time(arr - parse_time(departure_time)),
+                                                                 departure_time))
 
 
 def parse_arguments():
@@ -452,7 +468,7 @@ def parse_arguments():
     parser.add_argument("-r", "--rounds", type=int, help="Number of rounds to execute the RAPTOR algorithm")
     parser.add_argument("-c", "--cache", type=str2bool, default=False, help="Use cached GTFS")
     arguments = parser.parse_args(sys.argv[1:])
-
+    logger.debug('Parameters     : ' + str(sys.argv[1:]))
     logger.debug('Input directoy : ' + arguments.input)
     logger.debug('Start point    : ' + arguments.startpoint)
     logger.debug('End point      : ' + arguments.endpoint)
@@ -472,7 +488,8 @@ if __name__ == "__main__":
                                                     args.departure, args.rounds)
     logger.debug('Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
 
-    traveltimes, last_legs = export_results(traveltimes, legs, time_table_NS)
+    if SAVE_RESULTS:
+        traveltimes, last_legs = export_results(traveltimes, legs, time_table_NS)
 
     journey = reconstruct_journey(final_dest, legs)
-    print_journey(journey, time_table_NS)
+    print_journey(journey, time_table_NS, args.departure)
