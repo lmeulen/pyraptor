@@ -24,6 +24,7 @@ times a possible new arrival time is checked (k=2), is counted.
 |filter trips checked before | 3.855|108.818 |
 |limit journey duration to 6h |1.811 | 41.457 |
 |limit journey to 1h from transfer time | 316 | 10.974 |
+| only add transfers on transfer stations | 316 | 9948 |
 
 Due to the filtering om trips checked in a previous round, the following scenario is no longer possible:
 

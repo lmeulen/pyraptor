@@ -37,6 +37,8 @@ class Timetable:
     stops = None
     station2stops = None
     stop_times_for_trips = None
+    transfers = None
+
 
 def parse_time_to_sec(time_str):
     """
@@ -50,8 +52,8 @@ def parse_time_to_sec(time_str):
 def parse_sec_to_time(scnds, show_sec=False):
     """
     Convert hh:mm:ss to seconds since midnight
+    :param show_sec: only show :ss if True
     :param scnds: Seconds to translate to hh:mm:ss
-    :param show_sec, only show :ss if True
     """
     h = int(scnds / 3600)
     m = int((scnds % 3600) / 60)
@@ -195,20 +197,22 @@ def add_transfer_time(timetable, current_ids, time_to_stops_orig, last_leg_orig,
     for stop_id in current_ids:
         stoparea = timetable.stops[timetable.stops.index == stop_id].iloc[0]['parent_station']
 
-        # time to reach new nearby stops is the transfer cost plus arrival at last stop
-        arrive_time_adjusted = extended_time_to_stops[stop_id] + transfer_cost
+        # Only add transfers if it is a transfer station
+        if timetable.transfers[timetable.transfers.index == stoparea].iloc[0].values[0]:
+            # time to reach new nearby stops is the transfer cost plus arrival at last stop
+            arrive_time_adjusted = extended_time_to_stops[stop_id] + transfer_cost
 
-        # only update if currently inaccessible or faster than currrent option
-        # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
-        for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
-            old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
-            if old_value == T24H:
-                extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
-                extended_last_leg[arrive_stop_id] = (0, stop_id)
-                new_stops.append(arrive_stop_id)
-            if arrive_time_adjusted < old_value:
-                extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
-                extended_last_leg[arrive_stop_id] = (0, stop_id)
+            # only update if currently inaccessible or faster than currrent option
+            # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
+            for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
+                old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
+                if old_value == T24H:
+                    extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
+                    extended_last_leg[arrive_stop_id] = (0, stop_id)
+                    new_stops.append(arrive_stop_id)
+                if arrive_time_adjusted < old_value:
+                    extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
+                    extended_last_leg[arrive_stop_id] = (0, stop_id)
 
     return extended_time_to_stops, extended_last_leg, new_stops
 
@@ -427,16 +431,16 @@ def reconstruct_journey(destination, legs_list):
     return j
 
 
-def print_journey(j, tt, departure_time):
+def print_journey(j, tt, dep_time):
     """
     Print the given journey to logger info
     :param j: journey
     :param tt: timetable
-    :param departure_time: Original requested departure
+    :param dep_time: Original requested departure
     :return: -
     """
     logger.info('Journey:')
-    arr = departure_time
+    arr = dep_time
     for leg in j:
         if leg[1] != 0:
             frm = tt.stops[tt.stops.stop_id == leg[0]].stop_name.values[0]
@@ -456,9 +460,9 @@ def print_journey(j, tt, departure_time):
     fdt = j[0] if j[0][1] != 0 else j[1]
     fdt = tt.stop_times[(tt.stop_times.stop_id == fdt[0]) &
                         (tt.stop_times.trip_id == fdt[1])].departure_time.values[0]
-    logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time_to_sec(departure_time)),
-                                                                 parse_sec_to_time(arr - parse_time_to_sec(departure_time)),
-                                                                 parse_sec_to_time(parse_time_to_sec(departure_time))))
+    logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time_to_sec(dep_time)),
+                                                                 parse_sec_to_time(arr - parse_time_to_sec(dep_time)),
+                                                                 parse_sec_to_time(parse_time_to_sec(dep_time))))
 
 
 def parse_arguments():
@@ -500,9 +504,23 @@ def clean_timetable(tt):
 
     tt.station2stops = tt.stops[['parent_station', 'stop_id']].set_index('parent_station')
 
+    tt.transfers = tt.stop_times[['trip_id', 'stop_sequence', 'stop_id']].copy().sort_values(
+        ['trip_id', 'stop_sequence'])
+    tt.transfers['prev'] = tt.transfers['trip_id'] == tt.transfers['trip_id'].shift(-1)
+    tt.transfers['next_stop_id'] = tt.transfers['stop_id'].shift(-1)
+    tt.transfers = tt.transfers[tt.transfers.prev & (tt.transfers.stop_id != tt.transfers.next_stop_id)]
+    tt.transfers= tt.transfers[['stop_id', 'next_stop_id']]
+    tt.transfers = tt.transfers.merge(tt.stops[['stop_id', 'parent_station']])
+    tt.transfers.columns = ['stop_id', 'next_stop_id', 'parent_station']
+    tt.transfers = tt.transfers[['parent_station', 'next_stop_id']].drop_duplicates().groupby('parent_station').count()
+    tt.transfers['tranfer_station'] = tt.transfers['next_stop_id'] > 2
+    tt.transfers.drop('next_stop_id', 1, inplace=True)
+
     return tt
 
-
+# python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
+#                                           --e "Oosterbeek" --d "08:30:00" --r 2 --c True
+# snakeviz out.prof
 if __name__ == "__main__":
     args = parse_arguments()
 

@@ -3,11 +3,11 @@ import pandas as pd
 import sys
 
 GTFSDIR = 'gtfs-nl'
-OUTPUTDIR = 'gtfs-extracted-small'
+OUTPUTDIR = 'gtfs-extracted'
 
 agencies_names = ['NS']
 
-trip_list = [7625, 7526]
+trip_list = []
 
 if __name__ == "__main__":
 
