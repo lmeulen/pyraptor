@@ -56,7 +56,7 @@ The `perform_lRaptor(..)` method consists of the following steps:
 ```
 def perform_lraptor(timetable, departure_name, arrival_name, departure_time, iterations):
 
-    (from_stops, to_stops, dep_secs) = determine_parameters(timetable, departure_name, arrival_name, departure_time)
+    (from_stops, to_stops, dep_secs) = determine_parameters(...)
 
     # initialize lookup with start node taking 0 seconds to reach
     k_results = reached_stops = reached_stops_last_leg = {}
