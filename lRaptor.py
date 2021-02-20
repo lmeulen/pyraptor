@@ -491,6 +491,9 @@ def optimize_timetable(tt):
     tt.routes = None
     tt.calendar = None
 
+    tt.stop_times.stop_id = tt.stop_times.stop_id.astype(int)
+    tt.stops.stop_id = tt.stops.stop_id.astype(int)
+
     # Remove unused columns from trips and stop_times
     tt.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
                   axis=1, inplace=True)
