@@ -284,8 +284,8 @@ def determine_parameters(timetable, start_name, end_name, departure_time):
     departure = parse_time_to_sec(departure_time)
 
     # get all information, including the stop ids, for the start and end nodes
-    from_loc = timetable.stops[timetable.stops.stop_name == start_name]['stop_id'].to_list()
-    to_loc = timetable.stops[timetable.stops.stop_name == end_name]['stop_id'].to_list()
+    from_loc = timetable.stops[timetable.stops.stop_name == start_name].index.to_list()
+    to_loc = timetable.stops[timetable.stops.stop_name == end_name].index.to_list()
 
     return from_loc, to_loc, departure
 
@@ -333,8 +333,6 @@ def perform_lraptor(timetable, departure_name, arrival_name, departure_time, ite
     filter_trips = []
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     timetable.stop_times_filtered = timetable.stop_times[mask].copy()
-    timetable.stop_times_filtered['stop_id2'] = timetable.stop_times_filtered.stop_id
-    timetable.stop_times_filtered.set_index('stop_id2', inplace=True)
 
     for from_stop in from_stops:
         reached_stops[from_stop] = 0
@@ -445,22 +443,22 @@ def print_journey(j, tt, dep_time):
     arr = dep_time
     for leg in j:
         if leg[1] != 0:
-            frm = tt.stops[tt.stops.stop_id == leg[0]].stop_name.values[0]
-            frm_p = tt.stops[tt.stops.stop_id == leg[0]].platform_code.values[0]
-            to = tt.stops[tt.stops.stop_id == leg[2]].stop_name.values[0]
-            to_p = tt.stops[tt.stops.stop_id == leg[2]].platform_code.values[0]
+            frm = tt.stops[tt.stops.index == leg[0]].stop_name.values[0]
+            frm_p = tt.stops[tt.stops.index == leg[0]].platform_code.values[0]
+            to = tt.stops[tt.stops.index == leg[2]].stop_name.values[0]
+            to_p = tt.stops[tt.stops.index == leg[2]].platform_code.values[0]
             tr = tt.trips[tt.trips.trip_id == leg[1]].trip_short_name.values[0]
             trid = tt.trips[tt.trips.trip_id == leg[1]].trip_id.values[0]
-            dep = tt.stop_times[(tt.stop_times.stop_id == leg[0]) &
+            dep = tt.stop_times[(tt.stop_times.index == leg[0]) &
                                 (tt.stop_times.trip_id == leg[1])].departure_time.values[0]
-            arr = tt.stop_times[(tt.stop_times.stop_id == leg[2]) &
+            arr = tt.stop_times[(tt.stop_times.index == leg[2]) &
                                 (tt.stop_times.trip_id == leg[1])].arrival_time.values[0]
             logger.info(str(parse_sec_to_time(dep)) + " " + frm.ljust(20) + '(p. ' + frm_p.rjust(3) + ') TO ' +
                         str(parse_sec_to_time(arr)) + " " + to.ljust(20) + '(p. ' + to_p.rjust(3) + ') WITH ' +
                         str(tr) + ' (' + str(trid) + ')')
 
     fdt = j[0] if j[0][1] != 0 else j[1]
-    fdt = tt.stop_times[(tt.stop_times.stop_id == fdt[0]) &
+    fdt = tt.stop_times[(tt.stop_times.index == fdt[0]) &
                         (tt.stop_times.trip_id == fdt[1])].departure_time.values[0]
     logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time_to_sec(dep_time)),
                                                                  parse_sec_to_time(arr - parse_time_to_sec(dep_time)),
@@ -501,14 +499,8 @@ def optimize_timetable(tt):
     tt.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
     # Create dataset for mapping stop_ids to trips
     tt.stop_times_for_trips = tt.stop_times.copy()
-    tt.stop_times['stop_id2'] = tt.stop_times.stop_id
-    tt.stop_times.set_index('stop_id2', inplace=True)
-    tt.stop_times_for_trips['trip_id2'] = tt.stop_times_for_trips.trip_id
-    tt.stop_times_for_trips.set_index('trip_id2', inplace=True)
     # Clean stops data and add index for stop_id
     tt.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
-    tt.stops['stop_id2'] = tt.stops.stop_id
-    tt.stops.set_index('stop_id2', inplace=True)
     # Lookup table for parent_station to platforms
     tt.station2stops = tt.stops[['parent_station', 'stop_id']].set_index('parent_station')
     # Determine transfer stations (more than two direct destinations reachable)
@@ -524,7 +516,11 @@ def optimize_timetable(tt):
     tt.transfers['transfer_station'] = tt.transfers['next_stop_id'] > 2
     tt.transfers.drop('next_stop_id', 1, inplace=True)
     # Add transfer info to the stops info
+    tt.stops.set_index('stop_id', inplace=True)
+    tt.stop_times.set_index('stop_id', inplace=True)
+    tt.stop_times_for_trips.set_index('trip_id', inplace=True)
     tt.stops = tt.stops.merge(tt.transfers, left_on='parent_station', right_index=True)
+
 
     return tt
 
