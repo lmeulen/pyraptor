@@ -36,6 +36,60 @@ when the sprinter lin from A to B also extends to D. E.g. Nijmegen Lent to Gilze
 At this moment, these  journey advices are not given in practice so this filtering is kept.
 
 
+# Code structure
+
+The core of the application is the `perform_lRaptor(..)` method. Before it is called, the GTFS data is read and parerd. 
+```
+if __name__ == "__main__":
+    args = parse_arguments()
+    time_table = read_timetable(args.input, args.cache)
+    time_table = optimize_timetable(time_table)
+    traveltimes, final_dest, legs = perform_lraptor(...)
+    journey = reconstruct_journey(final_dest, legs)
+    print_journey(journey, time_table, args.departure)
+```
+After performing the analysis, the journey is reconstructed and printed. The journey needs reconstruciton 
+since it is not build during analysis. For performance reasons, only the last
+leg to each reached destination is kept and by traversing these backwards the route can be
+reconstructed.
+The `perform_lRaptor(..)` method consists of the following steps:
+```
+def perform_lraptor(timetable, departure_name, arrival_name, departure_time, iterations):
+
+    (from_stops, to_stops, dep_secs) = determine_parameters(timetable, departure_name, arrival_name, departure_time)
+
+    # initialize lookup with start node taking 0 seconds to reach
+    k_results = reached_stops = reached_stops_last_leg = {}
+    new_stops_total = filter_trips = []
+    mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
+    timetable.stop_times_filtered = timetable.stop_times[mask].copy()
+
+    for from_stop in from_stops:
+        reached_stops[from_stop] = 0
+        reached_stops_last_leg[from_stop] = (0, '')
+        new_stops_total.append(from_stop)
+
+    for k in range(1, iterations + 1):
+
+        stops_to_evaluate = list(new_stops_total)
+
+        reached_stops, reached_stops_last_leg, new_stops_travel, filter_trips = \
+            traverse_trips(timetable, stops_to_evaluate, reached_stops, reached_stops_last_leg, dep_secs, filter_trips)
+
+        stops_to_evaluate = list(reached_stops.keys())
+        reached_stops, reached_stops_last_leg, new_stops_transfer = \
+            add_transfer_time(timetable, stops_to_evaluate, reached_stops, reached_stops_last_leg)
+
+        new_stops_total = set(new_stops_travel).union(new_stops_transfer)
+
+        k_results[k] = reached_stops
+        mask = ~timetable.stop_times_filtered.trip_id.isin(filter_trips)
+        timetable.stop_times_filtered = timetable.stop_times_filtered[mask]
+
+    dest_id = final_destination(to_stops, reached_stops)
+```
+
+
 # Data structure
 
 For the calculations a GTFS file is read. Some additional preparation is performed so it an be used optimal.

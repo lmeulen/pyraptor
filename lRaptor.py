@@ -521,7 +521,6 @@ def optimize_timetable(tt):
     tt.stop_times_for_trips.set_index('trip_id', inplace=True)
     tt.stops = tt.stops.merge(tt.transfers, left_on='parent_station', right_index=True)
 
-
     return tt
 
 
