@@ -107,13 +107,12 @@ def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 
     """
 
     mask_1 = timetable.stop_times_filtered.index == stop_id
-    potential_trips = timetable.stop_times_filtered[mask_1]
-    mask_2 = potential_trips.departure_time.between(departure_time, departure_time + forward)
+    mask_2 = timetable.stop_times_filtered.departure_time.between(departure_time, departure_time + forward)
     mask_3 = True
     if tripfilter:
-        mask_3 = ~potential_trips.trip_id.isin(tripfilter)
+        mask_3 = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
     # extract the list of qualifying trip ids
-    potential_trips = potential_trips[mask_2 & mask_3].trip_id.unique()
+    potential_trips = timetable.stop_times_filtered[mask_1 & mask_2 & mask_3].trip_id.unique()
     return potential_trips.tolist()
 
 
@@ -195,10 +194,11 @@ def add_transfer_time(timetable, current_ids, time_to_stops_orig, last_leg_orig,
 
     # add in transfers to other platforms
     for stop_id in current_ids:
-        stoparea = timetable.stops[timetable.stops.index == stop_id].iloc[0]['parent_station']
+        stopdata = timetable.stops[timetable.stops.index == stop_id].iloc[0]
+        stoparea = stopdata['parent_station']
 
         # Only add transfers if it is a transfer station
-        if timetable.transfers[timetable.transfers.index == stoparea].iloc[0].values[0]:
+        if stopdata['transfer_station']:
             # time to reach new nearby stops is the transfer cost plus arrival at last stop
             arrive_time_adjusted = extended_time_to_stops[stop_id] + transfer_cost
 
@@ -485,47 +485,59 @@ def parse_arguments():
     return arguments
 
 
-def clean_timetable(tt):
+def optimize_timetable(tt):
+    # Remove unused data
     tt.agencies = None
     tt.routes = None
     tt.calendar = None
+
+    # Remove unused columns from trips and stop_times
     tt.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
                   axis=1, inplace=True)
     tt.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
+    # Create dataset for mapping stop_ids to trips
     tt.stop_times_for_trips = tt.stop_times
     tt.stop_times['stop_id2'] = tt.stop_times.stop_id
     tt.stop_times.set_index('stop_id2', inplace=True)
     tt.stop_times_for_trips['trip_id2'] = tt.stop_times_for_trips.trip_id
     tt.stop_times_for_trips.set_index('trip_id2', inplace=True)
 
+    # Clean stops data and add index for stop_id
     tt.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
     tt.stops['stop_id2'] = tt.stops.stop_id
     tt.stops.set_index('stop_id2', inplace=True)
 
+    # Lookup table for parent_station to platforms
     tt.station2stops = tt.stops[['parent_station', 'stop_id']].set_index('parent_station')
 
-    tt.transfers = tt.stop_times[['trip_id', 'stop_sequence', 'stop_id']].copy().sort_values(
-        ['trip_id', 'stop_sequence'])
+    # Determine transfer stations (more than two direct destinations reachable)
+    tt.transfers = tt.stop_times[['trip_id', 'stop_sequence', 'stop_id']].copy()
+    tt.transfers = tt.transfers.sort_values(['trip_id', 'stop_sequence'])
     tt.transfers['prev'] = tt.transfers['trip_id'] == tt.transfers['trip_id'].shift(-1)
     tt.transfers['next_stop_id'] = tt.transfers['stop_id'].shift(-1)
     tt.transfers = tt.transfers[tt.transfers.prev & (tt.transfers.stop_id != tt.transfers.next_stop_id)]
-    tt.transfers= tt.transfers[['stop_id', 'next_stop_id']]
+    tt.transfers = tt.transfers[['stop_id', 'next_stop_id']]
     tt.transfers = tt.transfers.merge(tt.stops[['stop_id', 'parent_station']])
     tt.transfers.columns = ['stop_id', 'next_stop_id', 'parent_station']
     tt.transfers = tt.transfers[['parent_station', 'next_stop_id']].drop_duplicates().groupby('parent_station').count()
-    tt.transfers['tranfer_station'] = tt.transfers['next_stop_id'] > 2
+    tt.transfers['transfer_station'] = tt.transfers['next_stop_id'] > 2
     tt.transfers.drop('next_stop_id', 1, inplace=True)
+
+    # Add transfer info to the stops info
+    tt.stops = tt.stops.merge(tt.transfers, left_on='parent_station', right_index=True)
 
     return tt
 
 # python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
 #                                           --e "Oosterbeek" --d "08:30:00" --r 2 --c True
 # snakeviz out.prof
+
+
 if __name__ == "__main__":
     args = parse_arguments()
 
     time_table_NS = read_timetable(args.input, args.cache)
-    time_table_NS = clean_timetable(time_table_NS)
+    time_table_NS = optimize_timetable(time_table_NS)
 
     ts = time.perf_counter()
     traveltimes, final_dest, legs = perform_lraptor(time_table_NS, args.startpoint, args.endpoint,
