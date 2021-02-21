@@ -168,8 +168,8 @@ def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 
     if tripfilter:
         mask_3 = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
     # extract the list of qualifying trip ids
-    potential_trips = timetable.stop_times_filtered[mask_1 & mask_2 & mask_3].trip_id.unique()
-    return potential_trips.tolist()
+    potential_trips = timetable.stop_times_filtered[mask_1 & mask_2 & mask_3].trip_id.tolist()
+    return potential_trips
 
 
 def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, departure_time, filter_trips):
@@ -208,7 +208,7 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
             # get the "hop on" point
             from_here = stop_times_trip[stop_times_trip.stop_id == ref_stop_id].iloc[0]['stop_sequence']
             # get all following stops
-            stop_times_after = stop_times_trip[stop_times_trip.stop_sequence > from_here]
+            stop_times_after = stop_times_trip[(stop_times_trip.stop_sequence > from_here)]
 
             # for all following stops, calculate time to reach
             arrivals_zip = zip(stop_times_after.arrival_time, stop_times_after.stop_id)
@@ -219,13 +219,10 @@ def traverse_trips(timetable, current_ids, time_to_stops_orig, last_leg_orig, de
 
                 # only update if does not exist yet or is faster
                 old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
-                if old_value == T24H:
-                    extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
-                    extended_last_leg[arrive_stop_id] = (potential_trip, ref_stop_id)
-                    new_stops.append(arrive_stop_id)
                 if arrive_time_adjusted < old_value:
                     extended_last_leg[arrive_stop_id] = (potential_trip, ref_stop_id)
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
+                    new_stops.append(arrive_stop_id)
 
     logger.debug('         Evaluations    : {}'.format(i))
     filter_trips = list(set(filter_trips))
@@ -297,7 +294,8 @@ def final_destination(to_ids, reached_ids):
     :param reached_ids:
     :return:
     """
-
+    print(reached_ids)
+    print(to_ids)
     final_id = ''
     distance = 999999
     for to_id in to_ids:

@@ -60,7 +60,7 @@ def perform_lraptor(timetable, departure_name, arrival_name, departure_time, ite
 
     # initialize lookup with start node taking 0 seconds to reach
     k_results = reached_stops = reached_stops_last_leg = {}
-    new_stops_total = filter_trips = []
+    new_stops = filter_trips = []
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     timetable.stop_times_filtered = timetable.stop_times[mask].copy()
 
@@ -69,26 +69,49 @@ def perform_lraptor(timetable, departure_name, arrival_name, departure_time, ite
         reached_stops_last_leg[from_stop] = (0, '')
         new_stops_total.append(from_stop)
 
-    for k in range(1, iterations + 1):
-
-        stops_to_evaluate = list(new_stops_total)
+    for k in [1,2,..]:
 
         reached_stops, reached_stops_last_leg, new_stops_travel, filter_trips = \
-            traverse_trips(timetable, stops_to_evaluate, reached_stops, reached_stops_last_leg, dep_secs, filter_trips)
+            traverse_trips(timetable, new_stops, reached_stops, reached_stops_last_leg, dep_secs)
 
-        stops_to_evaluate = list(reached_stops.keys())
         reached_stops, reached_stops_last_leg, new_stops_transfer = \
-            add_transfer_time(timetable, stops_to_evaluate, reached_stops, reached_stops_last_leg)
+            add_transfer_time(timetable, reached_stops, reached_stops, reached_stops_last_leg)
 
-        new_stops_total = set(new_stops_travel).union(new_stops_transfer)
-
+        new_stops = new_stops_travel + new_stops_transfer
         k_results[k] = reached_stops
+        # filter trips from stop times, will not be evaluated again
         mask = ~timetable.stop_times_filtered.trip_id.isin(filter_trips)
         timetable.stop_times_filtered = timetable.stop_times_filtered[mask]
 
     dest_id = final_destination(to_stops, reached_stops)
 ```
+One calcalation round consists of a `traverse_trips(...)` and a `add_transfer_time(..)` combination. The first 
+calculates all reachable stops by train, given the already reached stops (starts with departure station). The
+latter adds transfer time to all other platforms of the reached stations. After this, handled trips are removed
+from the trips that can be evaluated since it cannot impse an improvement anymore.
 
+The algorithm starts by finding all platforms for the departure station and adding these to the reached
+stops. This enable departure in alle directions from a station and we do not want walking time between
+platform at the origin.
+
+The algorithm ends with a call to `final_destination(..)` whch ensures the stop with the shortest traveltime for
+the departure station is returned. This is to prevent adding walk time at the end of the journey which is
+unncessary. It returns the smallest distance for ID's that are in to_ids.
+
+```
+def final_destination(to_ids, reached_ids):
+    final_id = 0
+    distance = 999999
+    for to_id in to_ids:
+        if to_id in reached_ids:
+            if reached_ids[to_id] < distance:
+                distance = reached_ids[to_id]
+                final_id = to_id
+    return final_id
+
+```
+
+Remember that the number of stop_ids is determined by the number of platforms at the destination station. 
 
 # Data structure
 
