@@ -8,7 +8,7 @@ Two applications:
 - ExtractOperators.py - Extract the time table information for one operator from a GTFS dataset
 - lRaptor.py - Perform the RAPTOR analysis
 
-Example usage:
+Example usage: 
 
 `python ExtractOperators.py NS`
 
