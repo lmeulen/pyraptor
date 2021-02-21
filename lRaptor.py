@@ -514,6 +514,25 @@ def optimize_timetable(tt):
     tt.stop_times_for_trips.set_index('trip_id', inplace=True)
     tt.stops = tt.stops.merge(tt.transfers, left_on='parent_station', right_index=True)
 
+    # Renumber stop_id's
+    d = pd.DataFrame(tt.stops.index.unique())
+    d = d.sort_values('stop_id')
+    d['new'] = range(1, len(d) + 1)
+    d = d.set_index('stop_id').to_dict()['new']
+    tt.stops.index = tt.stops.index.map(d)
+    tt.stop_times.index = tt.stop_times.index.map(d)
+    tt.station2stops.stop_id = tt.station2stops.stop_id.map(d)
+    tt.stop_times_for_trips.stop_id = tt.stop_times_for_trips.stop_id.map(d)
+
+    # Renumber trip_id's
+    d = pd.DataFrame(tt.trips.trip_id.unique(), columns=['trip_id'])
+    d = d.sort_values('trip_id')
+    d['new'] = range(1, len(d) + 1)
+    d = d.set_index('trip_id').to_dict()['new']
+    tt.trips.trip_id = tt.trips.trip_id.map(d)
+    tt.stop_times.trip_id = tt.stop_times.trip_id.map(d)
+    tt.stop_times_for_trips.index = tt.stop_times_for_trips.index.map(d)
+
     return tt
 
 
