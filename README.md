@@ -176,10 +176,9 @@ All stop times in the network. REfers to the assicated stoplocation and trip.
 
 | field | type | description |
 | --- | --- | --- |
-|index                |    int32 | Stop location ID 
+|index                |    int32 | Stop location ID (stop_id)
 |trip_id              |    int64 | ID of the associated trip
 |stop_sequence        |    int64 | Stop sequence along the line (NB not consecutive  numbers for intercity lines
-|stop_id              |    int32 | Stop location ID 
 |arrival_time         |    int64 | Arrival time at the stop location
 |departure_time       |    int64 | Departure time from the stop location
 
@@ -188,7 +187,7 @@ Overview of all stoplocations in the network. A stoplocaiton is a platform at a 
 
 | field | type | description |
 | --- | --- | --- |
-| index           |     int32 | ID of the stoplocation (platform at a station)
+| index           |     int32 | ID of the stoplocation (platform at a station) (stop_id)
 | stop_name       |    object | Name of the station where the stop location is located 
 | parent_station  |    object | Parent station, station
 | platform_code   |    object | Name of the platform of the stop location
@@ -202,7 +201,7 @@ A subset of the original stop_times. Filtered to contain only the coming 6 hours
 
 | field | type | description |
 | --- | --- | --- |
-|index                |    int32 | Stop location ID
+|index                |    int32 | Stop location ID (stop_id)
 |trip_id              |    int64 | ID of the associated trip
 |stop_sequence        |    int64 | Stop sequence along the line (NB not consecutive  numbers for intercity lines
 |arrival_time         |    int64 | Arrival time at the stop location
@@ -222,7 +221,7 @@ Faster lookup of arrival and dperature times for a stop of a trip
 
 | field | type | description |
 | --- | --- | --- |
-| index           |  int64 | Trip ID
+| index           |  int64 | Trip ID (trip_id)
 | stop_sequence   |  int64 | Stop sequency for the trip
 | stop_id         |  int32 | STop ID for the stop location
 | arrival_time    |  int64 | Arrival time
