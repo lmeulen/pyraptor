@@ -524,13 +524,12 @@ if __name__ == "__main__":
 
     args = parse_arguments()
 
-    time_table = read_timetable(args.input, args.cache)
-    time_table = optimize_timetable(time_table)
+    time_table = optimize_timetable(read_timetable(args.input, args.cache))
 
     ts = time.perf_counter()
     traveltimes, final_dest, legs = perform_lraptor(time_table, args.startpoint, args.endpoint,
                                                     args.departure, args.rounds)
-    logger.debug('Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
+    logger.debug('lRaptor Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
 
     if SAVE_RESULTS:
         traveltimes, last_legs = export_results(traveltimes, legs, time_table)
