@@ -259,13 +259,10 @@ def add_transfer_time(timetable, current_ids, time_to_stops_orig, last_leg_orig,
             # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
             for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
                 old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
-                if old_value == T24H:
-                    extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
-                    extended_last_leg[arrive_stop_id] = (0, stop_id)
-                    new_stops.append(arrive_stop_id)
                 if arrive_time_adjusted < old_value:
                     extended_time_to_stops[arrive_stop_id] = arrive_time_adjusted
                     extended_last_leg[arrive_stop_id] = (0, stop_id)
+                    new_stops.append(arrive_stop_id)
 
     return extended_time_to_stops, extended_last_leg, new_stops
 
@@ -294,8 +291,6 @@ def final_destination(to_ids, reached_ids):
     :param reached_ids:
     :return:
     """
-    print(reached_ids)
-    print(to_ids)
     final_id = ''
     distance = 999999
     for to_id in to_ids:

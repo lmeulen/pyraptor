@@ -94,6 +94,33 @@ The algorithm starts by finding all platforms for the departure station and addi
 stops. This enable departure in alle directions from a station and we do not want walking time between
 platform at the origin.
 
+### Add transfer time between platforms
+For a given set of stops (`stops`) the station is determined for this stop and transfer time is added
+for all other platforms at this station. This is only done for stations where a transfer to another route is
+possible. 
+```
+def add_transfer_time(timetable, stops, time_to_stops, last_leg):
+    new_stops = []
+    # add in transfers to other platforms
+    for stop_id in stops:
+        stopdata = timetable.stops[timetable.stops.index == stop_id].iloc[0]
+        stoparea = stopdata['parent_station']
+        # Only add transfers if it is a transfer station
+        if stopdata['transfer_station']:
+            # time to reach new nearby stops is the transfer cost plus arrival at last stop
+            arrive_time_adjusted = extended_time_to_stops[stop_id] + TRANSFER_COST
+            # only update if currently inaccessible or faster than currrent option
+            for a_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
+                old_value = extended_time_to_stops.get(a_stop_id, T24H)
+                if arrive_time_adjusted < old_value:
+                    time_to_stops[a_stop_id] = arrive_time_adjusted
+                    last_leg[a_stop_id] = (0, stop_id)
+                    new_stops.append(a_stop_id)
+
+    return time_to_stops, last_leg, new_stops
+
+```
+### Final destination
 The algorithm ends with a call to `final_destination(..)` whch ensures the stop with the shortest traveltime for
 the departure station is returned. This is to prevent adding walk time at the end of the journey which is
 unncessary. It returns the smallest distance for ID's that are in to_ids.
@@ -115,7 +142,7 @@ Remember that the number of stop_ids is determined by the number of platforms at
 
 # Data structure
 
-For the calculations a GTFS file is read. Some additional preparation is performed so it an be used optimal.
+For the calculations a GTFS file is read. Some additional preparation is performed so it can be used optimal.
 
 ```
 class Timetable:
