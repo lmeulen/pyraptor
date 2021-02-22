@@ -29,7 +29,7 @@ times a possible new arrival time is checked (k=2), is counted.
 
 Together with the other performance optimalisations (numerical indexes on dataframes, replace dataframes with
 numpy arrays, loop optimalisations, ...) the execution time of the algorithm is reduced from
-~90 seconds to ~1.5 seconds (intel i5, 8GB RAM).
+~90 seconds to ~1.5 seconds (intel i5, 8GB RAM, 2 rounds).
 
 Due to the filtering on trips checked in a previous round, the following scenario is no longer possible:
 

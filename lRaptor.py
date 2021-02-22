@@ -433,7 +433,7 @@ def print_journey(jrny, dep_time):
     firstdepart = jrny[0] if jrny[0][1] != 0 else jrny[1]
     firstdepart = timetable.stop_times[(timetable.stop_times.index == firstdepart[0]) &
                                        (timetable.stop_times.trip_id == firstdepart[1])].departure_time.values[0]
-    logger.info('Duration : {} ({} from request time {})'.format(sec2str(firstdepart - str2sec(dep_time)),
+    logger.info('Duration : {} ({} from request time {})'.format(sec2str(arr - firstdepart),
                                                                  sec2str(arr - str2sec(dep_time)),
                                                                  sec2str(str2sec(dep_time))))
 
