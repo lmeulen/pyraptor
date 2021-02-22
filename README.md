@@ -25,7 +25,7 @@ times a possible new arrival time is checked (k=2), is counted.
 |limit journey duration to 6h |1.811 | 41.457 |
 |limit journey to 1h from transfer time | 316 | 10.974 |
 | only add transfers on transfer stations | 316 | 9.948 |
-
+| filter trips in traverse trips | 316 | 4.279
 Due to the filtering om trips checked in a previous round, the following scenario is no longer possible:
 
 - Sprinter A - B
@@ -42,8 +42,8 @@ The core of the application is the `perform_lRaptor(..)` method. Before it is ca
 ```
 if __name__ == "__main__":
     args = parse_arguments()
-    time_table = read_timetable(args.input, args.cache)
-    time_table = optimize_timetable(time_table)
+    read_timetable(...)
+    optimize_timetable()
     traveltimes, final_dest, legs = perform_lraptor(...)
     journey = reconstruct_journey(final_dest, legs)
     print_journey(journey, time_table, args.departure)
@@ -54,28 +54,30 @@ leg to each reached destination is kept and by traversing these backwards the ro
 reconstructed.
 The `perform_lRaptor(..)` method consists of the following steps:
 ```
-def perform_lraptor(timetable, departure_name, arrival_name, departure_time, iterations):
+def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
 
     (from_stops, to_stops, dep_secs) = determine_parameters(...)
 
     # initialize lookup with start node taking 0 seconds to reach
-    k_results = reached_stops = reached_stops_last_leg = {}
-    new_stops = filter_trips = []
+    k_results = {}
+    numberstops = max(timetable.stops.index)+1
+    travel_times = np.full(shape=numberstops, fill_value=T24H, dtype=np.dtype(np.int32))
+    last_leg = np.full(shape=(numberstops, 2), fill_value=(-1, 0), dtype=np.dtype(np.int32, np.int32))
+    new_stops = tripfilter = []
+    # Filter timetable stop times, keep only coming 6 hours
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     timetable.stop_times_filtered = timetable.stop_times[mask].copy()
 
     for from_stop in from_stops:
-        reached_stops[from_stop] = 0
-        reached_stops_last_leg[from_stop] = (0, '')
-        new_stops_total.append(from_stop)
+        travel_times[from_stop] = 0
+        last_leg[from_stop] = (0, 0)
+        new_stops.append(from_stop)
 
     for k in [1,2,..]:
 
-        reached_stops, reached_stops_last_leg, new_stops_travel, filter_trips = \
-            traverse_trips(timetable, new_stops, reached_stops, reached_stops_last_leg, dep_secs)
+        new_stops_travel = traverse_trips(new_stops, travel_times, last_leg, dep_secs, tripfilter)
 
-        reached_stops, reached_stops_last_leg, new_stops_transfer = \
-            add_transfer_time(timetable, reached_stops, reached_stops, reached_stops_last_leg)
+        new_stops_transfer = add_transfer_time(new_stops_travel, travel_times, last_leg)
 
         new_stops = new_stops_travel + new_stops_transfer
         k_results[k] = reached_stops
@@ -91,7 +93,7 @@ latter adds transfer time to all other platforms of the reached stations. After 
 from the trips that can be evaluated since it cannot impse an improvement anymore.
 
 The algorithm starts by finding all platforms for the departure station and adding these to the reached
-stops. This enable departure in alle directions from a station and we do not want walking time between
+stops. This enables departure in alle directions from a station and we do not want walking time between
 platform at the origin.
 
 ### Add transfer time between platforms
@@ -99,25 +101,28 @@ For a given set of stops (`stops`) the station is determined for this stop and t
 for all other platforms at this station. This is only done for stations where a transfer to another route is
 possible. 
 ```
-def add_transfer_time(timetable, stops, time_to_stops, last_leg):
+def add_transfer_time(stops, time_to_stops, last_leg):
     new_stops = []
-    # add in transfers to other platforms
-    for stop_id in stops:
-        stopdata = timetable.stops[timetable.stops.index == stop_id].iloc[0]
-        stoparea = stopdata['parent_station']
-        # Only add transfers if it is a transfer station
-        if stopdata['transfer_station']:
-            # time to reach new nearby stops is the transfer cost plus arrival at last stop
-            arrive_time_adjusted = extended_time_to_stops[stop_id] + TRANSFER_COST
-            # only update if currently inaccessible or faster than currrent option
-            for a_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
-                old_value = extended_time_to_stops.get(a_stop_id, T24H)
-                if arrive_time_adjusted < old_value:
-                    time_to_stops[a_stop_id] = arrive_time_adjusted
-                    last_leg[a_stop_id] = (0, stop_id)
-                    new_stops.append(a_stop_id)
 
-    return time_to_stops, last_leg, new_stops
+    # add in transfers to other platforms
+    for stop in ids:
+        stopdata = timetable.stops[timetable.stops.index == stop].iloc[0]
+        stoparea = stopdata['parent_station']
+
+        if stopdata['transfer_station']:
+            # only update if currently inaccessible or faster than currrent option
+            # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
+            for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
+                # time to reach new nearby stops is the transfer cost plus arrival at last stop
+                time_sofar = traveltime_stops[stop]
+                arrive_time_adjusted = time_sofar + get_transfer_time(stop, arrive_stop_id, time_sofar, 0)
+                old_value = traveltime_stops[arrive_stop_id]
+                if arrive_time_adjusted < old_value:
+                    last_leg[arrive_stop_id] = (0, stop)
+                    traveltime_stops[arrive_stop_id] = arrive_time_adjusted
+                    new_stops.append(arrive_stop_id)
+
+    return new_stops
 
 ```
 ### Final destination

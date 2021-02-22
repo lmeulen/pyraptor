@@ -13,10 +13,9 @@ from dataclasses import dataclass
 # Default transfer time is 3 minutes
 TRANSFER_COST = (3 * 60)
 SAVE_RESULTS = False
-
 T24H = 24 * 60 * 60
 T6H = 6 * 60 * 60
-T30M = 30 * 60
+T1H = 1 * 60 * 60
 T3M = 3 * 60
 
 # create logger
@@ -41,7 +40,10 @@ class Timetable:
     transfers = None
 
 
-def parse_time_to_sec(time_str):
+timetable = Timetable()
+
+
+def str2sec(time_str):
     """
     Convert hh:mm:ss to seconds since midnight
     :param time_str: String in format hh:mm:ss
@@ -54,7 +56,7 @@ def parse_time_to_sec(time_str):
     return int(m) * 60 + int(s)
 
 
-def parse_sec_to_time(scnds, show_sec=False):
+def sec2str(scnds, show_sec=False):
     """
     Convert hh:mm:ss to seconds since midnight
     :param show_sec: only show :ss if True
@@ -64,28 +66,6 @@ def parse_sec_to_time(scnds, show_sec=False):
     m = int((scnds % 3600) / 60)
     s = int(scnds % 60)
     return "{:02d}:{:02d}:{:02d}".format(h, m, s) if show_sec else "{:02d}:{:02d}".format(h, m)
-
-
-def stop_time_to_str(stop):
-    """
-    Convert a GTFS stoptime location to a human readable string
-    :param stop:
-    :return:
-    """
-    s = str(stop['trip_id']) + '-' + str(stop['stop_sequence']) + ' ' + str(stop['stop_id']).ljust(2) + ' '
-    s += str(stop['arrival_time']) + '-' + str(stop['departure_time']) + ' ' + str(stop['shape_dist_traveled'])
-    return s
-
-
-def stop_to_str(loc):
-    """
-    Convert a GTFS stop location location to a human readable string
-    :param loc:
-    :return:
-    """
-    s = str(loc['stop_id']) + ' - ' + str(loc['stop_name']) + ' - ' + str(loc['platform_code'])
-    s += ' - ' + str(loc['stop_code']) + ' - ' + str(loc['parent_station'])
-    return s
 
 
 def str2bool(v):
@@ -108,63 +88,66 @@ def read_timetable(gtfs_dir, use_cache):
     Global parameter READ_GTFS determines cache or reading original GTFS files
     :return:
     """
-
+    global timetable
     start_time = time.perf_counter()
-    tt = Timetable()
     if use_cache & os.path.exists(os.path.join('timetable_cache', 'stop_times.pcl')):
-        tt.agencies = pd.read_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
-        tt.routes = pd.read_pickle(os.path.join('timetable_cache', 'routes.pcl'))
-        tt.trips = pd.read_pickle(os.path.join('timetable_cache', 'trips.pcl'))
-        tt.calendar = pd.read_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
-        tt.stop_times = pd.read_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
-        tt.stops = pd.read_pickle(os.path.join('timetable_cache', 'stops.pcl'))
+        timetable.agencies = pd.read_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
+        timetable.routes = pd.read_pickle(os.path.join('timetable_cache', 'routes.pcl'))
+        timetable.trips = pd.read_pickle(os.path.join('timetable_cache', 'trips.pcl'))
+        timetable.calendar = pd.read_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
+        timetable.stop_times = pd.read_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
+        timetable.stops = pd.read_pickle(os.path.join('timetable_cache', 'stops.pcl'))
     else:
-        tt.agencies = pd.read_csv(os.path.join(gtfs_dir, 'agency.txt'))
+        timetable.agencies = pd.read_csv(os.path.join(gtfs_dir, 'agency.txt'))
 
-        tt.routes = pd.read_csv(os.path.join(gtfs_dir, 'routes.txt'))
+        timetable.routes = pd.read_csv(os.path.join(gtfs_dir, 'routes.txt'))
 
-        tt.trips = pd.read_csv(os.path.join(gtfs_dir, 'trips.txt'))
-        tt.trips.trip_short_name = tt.trips.trip_short_name.astype(int)
-        tt.trips.shape_id = tt.trips.shape_id.astype('Int64')
+        timetable.trips = pd.read_csv(os.path.join(gtfs_dir, 'trips.txt'))
+        timetable.trips.trip_short_name = timetable.trips.trip_short_name.astype(int)
+        timetable.trips.shape_id = timetable.trips.shape_id.astype('Int64')
 
-        tt.calendar = pd.read_csv(os.path.join(gtfs_dir, 'calendar_dates.txt'))
-        tt.calendar.date = tt.calendar.date.astype(str)
+        timetable.calendar = pd.read_csv(os.path.join(gtfs_dir, 'calendar_dates.txt'))
+        timetable.calendar.date = timetable.calendar.date.astype(str)
 
-        tt.stop_times = pd.read_csv(os.path.join(gtfs_dir, 'stop_times.txt'))
-        tt.stop_times.arrival_time = tt.stop_times.apply(lambda x: parse_time_to_sec(x['arrival_time']), axis=1)
-        tt.stop_times.departure_time = tt.stop_times.apply(lambda x: parse_time_to_sec(x['departure_time']), axis=1)
-        tt.stop_times.stop_id = tt.stop_times.stop_id.astype(str)
-        tt.stop_times_filtered = None
+        timetable.stop_times = pd.read_csv(os.path.join(gtfs_dir, 'stop_times.txt'))
+        timetable.stop_times.arrival_time = timetable.stop_times.apply(lambda x: str2sec(x['arrival_time']), axis=1)
+        timetable.stop_times.departure_time = timetable.stop_times.apply(lambda x: str2sec(x['departure_time']),
+                                                                         axis=1)
+        timetable.stop_times.stop_id = timetable.stop_times.stop_id.astype(str)
+        timetable.stop_times_filtered = None
 
-        tt.stops = pd.read_csv(os.path.join(gtfs_dir, 'stops.txt'))
+        timetable.stops = pd.read_csv(os.path.join(gtfs_dir, 'stops.txt'))
         # Filter out the general station codes
-        tt.stops = tt.stops[~tt.stops.stop_id.str.startswith('stoparea')]
+        timetable.stops = timetable.stops[~timetable.stops.stop_id.str.startswith('stoparea')]
 
-        tt.agencies.to_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
-        tt.routes.to_pickle(os.path.join('timetable_cache', 'routes.pcl'))
-        tt.trips.to_pickle(os.path.join('timetable_cache', 'trips.pcl'))
-        tt.calendar.to_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
-        tt.stop_times.to_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
-        tt.stops.to_pickle(os.path.join('timetable_cache', 'stops.pcl'))
+        timetable.agencies.to_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
+        timetable.routes.to_pickle(os.path.join('timetable_cache', 'routes.pcl'))
+        timetable.trips.to_pickle(os.path.join('timetable_cache', 'trips.pcl'))
+        timetable.calendar.to_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
+        timetable.stop_times.to_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
+        timetable.stops.to_pickle(os.path.join('timetable_cache', 'stops.pcl'))
 
     logger.info("Reading GTFS took {:0.4f} seconds".format(time.perf_counter() - start_time))
-    logger.debug('Agencies  : {}'.format(len(tt.agencies)))
-    logger.debug('Routes    : {}'.format(len(tt.routes)))
-    logger.debug('Stops     : {}'.format(len(tt.stops)))
-    logger.debug('Trips     : {}'.format(len(tt.trips)))
-    logger.debug('Stoptimes : {}'.format(len(tt.stop_times)))
-    return tt
+    logger.debug('Agencies  : {}'.format(len(timetable.agencies)))
+    logger.debug('Routes    : {}'.format(len(timetable.routes)))
+    logger.debug('Stops     : {}'.format(len(timetable.stops)))
+    logger.debug('Trips     : {}'.format(len(timetable.trips)))
+    logger.debug('Stoptimes : {}'.format(len(timetable.stop_times)))
 
 
-def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 6, tripfilter=None):
+def get_trip_ids_for_stop(stop_id, dep_time, forward=T6H, tripfilter=None):
     """Takes a stop and departure time and get associated trip ids.
        The forward parameter limits the time frame starting at the departure time.
        Default framesize is 60 minutes
        Times asre specified in seconds sincs midnight
+    :param stop_id: Stop
+    :param dep_time: Departure time
+    :param forward: Period forward limitimg trips
+    :param tripfilter: If specified contains tripnumbers to exclude
     """
-
+    global timetable
     mask_1 = timetable.stop_times_filtered.index == stop_id
-    mask_2 = timetable.stop_times_filtered.departure_time.between(departure_time, departure_time + forward)
+    mask_2 = timetable.stop_times_filtered.departure_time.between(dep_time, dep_time + forward)
     mask_3 = True
     if tripfilter:
         mask_3 = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
@@ -173,45 +156,40 @@ def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 
     return potential_trips
 
 
-def traverse_trips(timetable, current_ids, traveltime_stops, last_leg, departure_time, filter_trips):
+def traverse_trips(ids, traveltime_stops, last_leg, departure_time, filter_trips):
     """ Iterator through the stops reachable and add all new reachable stops
         by following all trips from the reached stations. Trips are only followed
         in the direction of travel and beyond already added points
-    :param timetable: Timetable data
-    :param current_ids: Current stops reached
+    :param ids: Current stops reached
     :param traveltime_stops: numpy array with traveltimes to reached stops
     :param last_leg: List of last leg to reached stations
     :param departure_time: Departure time
     :param filter_trips: trips to filter from the list of potential trips
     """
-
+    global timetable
     # prevent upstream mutation of dictionary
     new_stops = []
 
-    baseline_filter_trips = copy(filter_trips)
-    logger.debug('        Filtered  trips: {}'.format(len(baseline_filter_trips)))
-    filter_trips = []
     i = 0
-    for ref_stop_id in current_ids:
+    for start_stop in ids:
         # how long it took to get to the stop so far (0 for start node)
-        baseline_cost = traveltime_stops[ref_stop_id]
+        time_sofar = traveltime_stops[start_stop]
         # get list of all trips associated with this stop
-        reachable_trips = get_trip_ids_for_stop(timetable, ref_stop_id, departure_time + baseline_cost,
-                                                forward=3600, tripfilter=None)
-        filter_trips.extend(reachable_trips)
-        for potential_trip in reachable_trips:
+        trips = get_trip_ids_for_stop(start_stop, departure_time + time_sofar, T1H, filter_trips)
+        filter_trips.extend(trips)
+        for trip in trips:
 
             # get all the stop time arrivals for that trip
-            stop_times_trip = timetable.stop_times_for_trips[timetable.stop_times_for_trips.index == potential_trip]
+            stop_times = timetable.stop_times_for_trips[timetable.stop_times_for_trips.index == trip]
 
-            # get the "hop on" point
-            from_here = stop_times_trip[stop_times_trip.stop_id == ref_stop_id].iloc[0]['stop_sequence']
+            # get the point where we join this specific trip
+            from_here = stop_times[stop_times.stop_id == start_stop].iloc[0]['stop_sequence']
             # get all following stops
-            stop_times_after = stop_times_trip[(stop_times_trip.stop_sequence > from_here)]
+            stop_times = stop_times[(stop_times.stop_sequence > from_here)]
 
             # for all following stops, calculate time to reach
-            arrivals_zip = zip(stop_times_after.arrival_time, stop_times_after.stop_id)
-            for arrive_time, arrive_stop_id in arrivals_zip:
+            arrivals = zip(stop_times.arrival_time, stop_times.stop_id)
+            for arrive_time, arrive_stop_id in arrivals:
                 i += 1
                 # time to reach is diff from start time to arrival (plus any baseline cost)
                 arrive_time_adjusted = arrive_time - departure_time
@@ -219,13 +197,13 @@ def traverse_trips(timetable, current_ids, traveltime_stops, last_leg, departure
                 # only update if does not exist yet or is faster
                 old_value = traveltime_stops[arrive_stop_id]
                 if arrive_time_adjusted < old_value:
-                    last_leg[arrive_stop_id] = (potential_trip, ref_stop_id)
+                    last_leg[arrive_stop_id] = (trip, start_stop)
                     traveltime_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
 
     logger.debug('         Evaluations    : {}'.format(i))
     filter_trips = list(set(filter_trips))
-    return new_stops, filter_trips
+    return new_stops
 
 
 def get_transfer_time(stop_from, stop_to, timesec, dow):
@@ -240,51 +218,49 @@ def get_transfer_time(stop_from, stop_to, timesec, dow):
     return TRANSFER_COST
 
 
-def add_transfer_time(timetable, current_ids, traveltime_stops, last_leg):
+def add_transfer_time(ids, traveltime_stops, last_leg):
     """
     Add transfers between platforms
-    :param timetable:
-    :param current_ids:
+    :param ids:
     :param traveltime_stops:
     :param last_leg:
     :return:
     """
-
+    global timetable
     # prevent upstream mutation of dictionary
     new_stops = []
 
     # add in transfers to other platforms
-    for stop_id in current_ids:
-        stopdata = timetable.stops[timetable.stops.index == stop_id].iloc[0]
+    for stop in ids:
+        stopdata = timetable.stops[timetable.stops.index == stop].iloc[0]
         stoparea = stopdata['parent_station']
 
         # Only add transfers if it is a transfer station
         if stopdata['transfer_station']:
-
             # only update if currently inaccessible or faster than currrent option
             # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
             for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
                 # time to reach new nearby stops is the transfer cost plus arrival at last stop
-                time_sofar = traveltime_stops[stop_id]
-                arrive_time_adjusted = time_sofar + get_transfer_time(stop_id, arrive_stop_id, time_sofar, 0)
+                time_sofar = traveltime_stops[stop]
+                arrive_time_adjusted = time_sofar + get_transfer_time(stop, arrive_stop_id, time_sofar, 0)
                 old_value = traveltime_stops[arrive_stop_id]
                 if arrive_time_adjusted < old_value:
-                    last_leg[arrive_stop_id] = (0, stop_id)
+                    last_leg[arrive_stop_id] = (0, stop)
                     traveltime_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
 
     return new_stops
 
 
-def determine_parameters(timetable, start_name, end_name, departure_time):
+def determine_parameters(start_name, end_name, departure_time):
     """ Determine algorithm paramters based upon human readable information
         start_name : Location to start journey
         end_name: Endpoint of the journey
         departure_time: Time of the departure in hh:mm:ss
     """
-
+    global timetable
     # look at all trips from that stop that are after the depart time
-    departure = parse_time_to_sec(departure_time)
+    departure = str2sec(departure_time)
 
     # get all information, including the stop ids, for the start and end nodes
     from_loc = timetable.stops[timetable.stops.stop_name == start_name].index.to_list()
@@ -309,36 +285,35 @@ def final_destination(to_ids, travel_times):
     return final_id
 
 
-def perform_lraptor(timetable, departure_name, arrival_name, departure_time, iterations):
+def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
     """
     Perform the Raptor algorithm
-    :param timetable: Time table
     :param departure_name: Name of departure location
     :param arrival_name: Name of arrival location
     :param departure_time: Time of departure, str format (hh:mm:sss)
     :param iterations: Number of iterations to perform
     :return:
     """
-
+    global timetable
     # Determine start and stop area
-    (from_stops, to_stops, dep_secs) = determine_parameters(timetable, departure_name, arrival_name, departure_time)
+    from_stops, to_stops, dep_secs = determine_parameters(departure_name, arrival_name, departure_time)
     logger.debug('Departure ID : ' + str(from_stops))
     logger.debug('Arrival ID   : ' + str(to_stops))
     logger.debug('Time         : ' + str(dep_secs))
 
     # initialize lookup with start node taking 0 seconds to reach
     k_results = {}
-    traveltime_stops = np.full(shape=max(timetable.stops.index)+1, fill_value=T24H, dtype=np.dtype(np.int32))
-    reached_stops_last_leg = np.full(shape=(max(timetable.stops.index)+1, 2),
-                                     fill_value=(-1, 0), dtype=np.dtype(np.int32, np.int32))
-    new_stops = []
-    tripfilter = []
+    numberstops = max(timetable.stops.index)+1
+    travel_times = np.full(shape=numberstops, fill_value=T24H, dtype=np.dtype(np.int32))
+    last_leg = np.full(shape=(numberstops, 2), fill_value=(-1, 0), dtype=np.dtype(np.int32, np.int32))
+    new_stops = tripfilter = []
+    # Filter timetable stop times, keep only coming 6 hours
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     timetable.stop_times_filtered = timetable.stop_times[mask].copy()
 
     for from_stop in from_stops:
-        traveltime_stops[from_stop] = 0
-        reached_stops_last_leg[from_stop] = (0, 0)
+        travel_times[from_stop] = 0
+        last_leg[from_stop] = (0, 0)
         new_stops.append(from_stop)
     logger.debug('Starting from IDS : '.format(str(from_stops)))
 
@@ -346,47 +321,42 @@ def perform_lraptor(timetable, departure_name, arrival_name, departure_time, ite
         logger.info("Analyzing possibilities round {}".format(k))
 
         # get list of stops to evaluate in the process
-        stops_to_evaluate = list(new_stops)
-        logger.info("    Stops to evaluate count: {}".format(len(stops_to_evaluate)))
+        logger.info("    Stops to evaluate count: {}".format(len(new_stops)))
 
         # update time to stops calculated based on stops accessible
         t = time.perf_counter()
-        new_stops_travel, tripfilter = \
-            traverse_trips(timetable, stops_to_evaluate, traveltime_stops, reached_stops_last_leg,
-                           dep_secs, tripfilter)
+        new_stops_travel = traverse_trips(new_stops, travel_times, last_leg, dep_secs, tripfilter)
         logger.info("    Travel stops  calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.debug("    {} stops added".format(len(new_stops_travel)))
 
         # now add footpath transfers and update
         t = time.perf_counter()
-        new_stops_transfer = add_transfer_time(timetable, new_stops_travel, traveltime_stops, reached_stops_last_leg)
+        new_stops_transfer = add_transfer_time(new_stops_travel, travel_times, last_leg)
         logger.info("    Transfers calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.info("    {} stops added".format(len(new_stops_transfer)))
 
         new_stops = set(new_stops_travel).union(new_stops_transfer)
-
         logger.info("    {} stops to evaluate in next round".format(len(new_stops)))
 
         # Store the results for this round
-        k_results[k] = np.copy(traveltime_stops)
+        k_results[k] = np.copy(travel_times)
         mask = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
         timetable.stop_times_filtered = timetable.stop_times_filtered[mask]
     # Determine the best destionation ID, destination is a platform.
-    dest_id = final_destination(to_stops, traveltime_stops)
+    dest_id = final_destination(to_stops, travel_times)
     if dest_id != '':
         logger.info("Destination code   : {} ".format(dest_id))
-        logger.info("Time to destination: {} minutes".format(traveltime_stops[dest_id] / 60))
+        logger.info("Time to destination: {} minutes".format(travel_times[dest_id] / 60))
     else:
         logger.info("Destination unreachable with given parameters")
-    return k_results, dest_id, reached_stops_last_leg
+    return k_results, dest_id, last_leg
 
 
-def export_results(k, fd, tt):
+def export_results(k, fd):
     """
     Export results to a CSV file with stations and traveltimes (per iteration)
     :param k: datastructure with results per iteration
     :param fd: Final destination last leg
-    :param tt: Timetable
     :return: DataFrame with the results exported
     """
     filename1 = 'res_{date:%Y%m%d_%H%M%S}_traveltime.csv'.format(date=datetime.now())
@@ -396,7 +366,7 @@ def export_results(k, fd, tt):
         locations = k[i]
         destination = 0
         for traveltime in locations:
-            stop = tt.stops[tt.stops.index == destination]
+            stop = timetable.stops[timetable.stops.index == destination]
             if (not stop.empty) and destination < T24H:
                 name = stop['stop_name'].values[0]
                 platform = stop['platform_code'].values[0]
@@ -405,7 +375,7 @@ def export_results(k, fd, tt):
             destination = destination + 1
     df = pd.read_csv(io.StringIO(datastring), sep=",")
     df = df[['round', 'stop_name', 'travel_time']].groupby(['round', 'stop_name']).min().sort_values('travel_time')
-    df.travel_time = df.apply(lambda x: parse_sec_to_time(x.travel_time), axis=1)
+    df.travel_time = df.apply(lambda x: sec2str(x.travel_time), axis=1)
     df.to_csv(filename1)
 
     filename2 = 'res_{date:%Y%m%d_%H%M%S}_last_legs.csv'.format(date=datetime.now())
@@ -423,48 +393,48 @@ def export_results(k, fd, tt):
 
 
 def reconstruct_journey(destination, legs_list):
-    j = []
+    jrny = []
     current = destination
     while current != 0:
-        t = legs_list[current]
-        j.append((t[1], t[0], current))
-        current = t[1]
-    j.reverse()
-    return j
+        leg = legs_list[current]
+        jrny.append((leg[1], leg[0], current))
+        current = leg[1]
+    jrny.reverse()
+    return jrny
 
 
-def print_journey(j, tt, dep_time):
+def print_journey(jrny, dep_time):
     """
     Print the given journey to logger info
-    :param j: journey
-    :param tt: timetable
+    :param jrny: journey
     :param dep_time: Original requested departure
     :return: -
     """
     logger.info('Journey:')
     arr = dep_time
-    for leg in j:
+    for leg in jrny:
         if leg[1] != 0:
-            frm = tt.stops[tt.stops.index == leg[0]].stop_name.values[0]
-            frm_p = tt.stops[tt.stops.index == leg[0]].platform_code.values[0]
-            to = tt.stops[tt.stops.index == leg[2]].stop_name.values[0]
-            to_p = tt.stops[tt.stops.index == leg[2]].platform_code.values[0]
-            tr = tt.trips[tt.trips.trip_id == leg[1]].trip_short_name.values[0]
-            trid = tt.trips[tt.trips.trip_id == leg[1]].trip_id.values[0]
-            dep = tt.stop_times[(tt.stop_times.index == leg[0]) &
-                                (tt.stop_times.trip_id == leg[1])].departure_time.values[0]
-            arr = tt.stop_times[(tt.stop_times.index == leg[2]) &
-                                (tt.stop_times.trip_id == leg[1])].arrival_time.values[0]
-            logger.info(str(parse_sec_to_time(dep)) + " " + frm.ljust(20) + '(p. ' + frm_p.rjust(3) + ') TO ' +
-                        str(parse_sec_to_time(arr)) + " " + to.ljust(20) + '(p. ' + to_p.rjust(3) + ') WITH ' +
-                        str(tr) + ' (' + str(trid) + ')')
+            a = timetable.stops[timetable.stops.index == leg[0]]
+            b = timetable.stops[timetable.stops.index == leg[2]]
+            t = timetable.trips[timetable.trips.trip_id == leg[1]]
+            frm = a.stop_name.values[0]
+            frm_p = a.platform_code.values[0]
+            to = b.stop_name.values[0]
+            to_p = b.platform_code.values[0]
+            tr = t.trip_short_name.values[0]
+            dep = timetable.stop_times[(timetable.stop_times.index == leg[0]) &
+                                       (timetable.stop_times.trip_id == leg[1])].departure_time.values[0]
+            arr = timetable.stop_times[(timetable.stop_times.index == leg[2]) &
+                                       (timetable.stop_times.trip_id == leg[1])].arrival_time.values[0]
+            logger.info(str(sec2str(dep)) + " " + frm.ljust(20) + '(p. ' + frm_p.rjust(3) + ') TO ' +
+                        str(sec2str(arr)) + " " + to.ljust(20) + '(p. ' + to_p.rjust(3) + ') WITH ' + str(tr))
 
-    fdt = j[0] if j[0][1] != 0 else j[1]
-    fdt = tt.stop_times[(tt.stop_times.index == fdt[0]) &
-                        (tt.stop_times.trip_id == fdt[1])].departure_time.values[0]
-    logger.info('Duration : {} ({} from request time {})'.format(parse_sec_to_time(fdt - parse_time_to_sec(dep_time)),
-                                                                 parse_sec_to_time(arr - parse_time_to_sec(dep_time)),
-                                                                 parse_sec_to_time(parse_time_to_sec(dep_time))))
+    firstdepart = jrny[0] if jrny[0][1] != 0 else jrny[1]
+    firstdepart = timetable.stop_times[(timetable.stop_times.index == firstdepart[0]) &
+                                       (timetable.stop_times.trip_id == firstdepart[1])].departure_time.values[0]
+    logger.info('Duration : {} ({} from request time {})'.format(sec2str(firstdepart - str2sec(dep_time)),
+                                                                 sec2str(arr - str2sec(dep_time)),
+                                                                 sec2str(str2sec(dep_time))))
 
 
 def parse_arguments():
@@ -487,62 +457,62 @@ def parse_arguments():
     return arguments
 
 
-def optimize_timetable(tt):
-    # Remove unused data
-    tt.agencies = None
-    tt.routes = None
-    tt.calendar = None
+def optimize_timetable():
+    """
+    Optimize the timetable for usage in the raptor algorithm
+    :return:
+    """
     # stop ID's as integer
-    tt.stop_times.stop_id = tt.stop_times.stop_id.astype(int)
-    tt.stops.stop_id = tt.stops.stop_id.astype(int)
+    timetable.stop_times.stop_id = timetable.stop_times.stop_id.astype(int)
+    timetable.stops.stop_id = timetable.stops.stop_id.astype(int)
     # Remove unused columns from trips and stop_times
-    tt.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
-                  axis=1, inplace=True)
-    tt.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
+    timetable.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
+                         axis=1, inplace=True)
+    timetable.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
     # Create dataset for mapping stop_ids to trips
-    tt.stop_times_for_trips = tt.stop_times.copy()
+    timetable.stop_times_for_trips = timetable.stop_times.copy()
     # Clean stops data and add index for stop_id
-    tt.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
+    timetable.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
     # Lookup table for parent_station to platforms
-    tt.station2stops = tt.stops[['parent_station', 'stop_id']].set_index('parent_station')
+    timetable.station2stops = timetable.stops[['parent_station', 'stop_id']].set_index('parent_station')
     # Determine transfer stations (more than two direct destinations reachable)
-    tt.transfers = tt.stop_times[['trip_id', 'stop_sequence', 'stop_id']].copy()
-    tt.transfers = tt.transfers.sort_values(['trip_id', 'stop_sequence'])
-    tt.transfers['prev'] = tt.transfers['trip_id'] == tt.transfers['trip_id'].shift(-1)
-    tt.transfers['next_stop_id'] = tt.transfers['stop_id'].shift(-1)
-    tt.transfers = tt.transfers[tt.transfers.prev & (tt.transfers.stop_id != tt.transfers.next_stop_id)]
-    tt.transfers = tt.transfers[['stop_id', 'next_stop_id']]
-    tt.transfers = tt.transfers.merge(tt.stops[['stop_id', 'parent_station']])
-    tt.transfers.columns = ['stop_id', 'next_stop_id', 'parent_station']
-    tt.transfers = tt.transfers[['parent_station', 'next_stop_id']].drop_duplicates().groupby('parent_station').count()
-    tt.transfers['transfer_station'] = tt.transfers['next_stop_id'] > 2
-    tt.transfers.drop('next_stop_id', 1, inplace=True)
+    timetable.transfers = timetable.stop_times[['trip_id', 'stop_sequence', 'stop_id']].copy()
+    timetable.transfers = timetable.transfers.sort_values(['trip_id', 'stop_sequence'])
+    timetable.transfers['prev'] = timetable.transfers['trip_id'] == timetable.transfers['trip_id'].shift(-1)
+    timetable.transfers['next_stop_id'] = timetable.transfers['stop_id'].shift(-1)
+    timetable.transfers = timetable.transfers[timetable.transfers.prev &
+                                              (timetable.transfers.stop_id != timetable.transfers.next_stop_id)]
+    timetable.transfers = timetable.transfers[['stop_id', 'next_stop_id']]
+    timetable.transfers = timetable.transfers.merge(timetable.stops[['stop_id', 'parent_station']])
+    timetable.transfers.columns = ['stop_id', 'next_stop_id', 'parent_station']
+    timetable.transfers = timetable.transfers[['parent_station', 'next_stop_id']].drop_duplicates()
+    timetable.transfers = timetable.transfers.groupby('parent_station').count()
+    timetable.transfers['transfer_station'] = timetable.transfers['next_stop_id'] > 2
+    timetable.transfers.drop('next_stop_id', 1, inplace=True)
     # Add transfer info to the stops info
-    tt.stops.set_index('stop_id', inplace=True)
-    tt.stop_times.set_index('stop_id', inplace=True)
-    tt.stop_times_for_trips.set_index('trip_id', inplace=True)
-    tt.stops = tt.stops.merge(tt.transfers, left_on='parent_station', right_index=True)
+    timetable.stops.set_index('stop_id', inplace=True)
+    timetable.stop_times.set_index('stop_id', inplace=True)
+    timetable.stop_times_for_trips.set_index('trip_id', inplace=True)
+    timetable.stops = timetable.stops.merge(timetable.transfers, left_on='parent_station', right_index=True)
 
     # Renumber stop_id's
-    d = pd.DataFrame(tt.stops.index.unique())
+    d = pd.DataFrame(timetable.stops.index.unique())
     d = d.sort_values('stop_id')
     d['new'] = range(1, len(d) + 1)
     d = d.set_index('stop_id').to_dict()['new']
-    tt.stops.index = tt.stops.index.map(d)
-    tt.stop_times.index = tt.stop_times.index.map(d)
-    tt.station2stops.stop_id = tt.station2stops.stop_id.map(d)
-    tt.stop_times_for_trips.stop_id = tt.stop_times_for_trips.stop_id.map(d)
+    timetable.stops.index = timetable.stops.index.map(d)
+    timetable.stop_times.index = timetable.stop_times.index.map(d)
+    timetable.station2stops.stop_id = timetable.station2stops.stop_id.map(d)
+    timetable.stop_times_for_trips.stop_id = timetable.stop_times_for_trips.stop_id.map(d)
 
     # Renumber trip_id's
-    d = pd.DataFrame(tt.trips.trip_id.unique(), columns=['trip_id'])
+    d = pd.DataFrame(timetable.trips.trip_id.unique(), columns=['trip_id'])
     d = d.sort_values('trip_id')
     d['new'] = range(1, len(d) + 1)
     d = d.set_index('trip_id').to_dict()['new']
-    tt.trips.trip_id = tt.trips.trip_id.map(d)
-    tt.stop_times.trip_id = tt.stop_times.trip_id.map(d)
-    tt.stop_times_for_trips.index = tt.stop_times_for_trips.index.map(d)
-
-    return tt
+    timetable.trips.trip_id = timetable.trips.trip_id.map(d)
+    timetable.stop_times.trip_id = timetable.stop_times.trip_id.map(d)
+    timetable.stop_times_for_trips.index = timetable.stop_times_for_trips.index.map(d)
 
 
 if __name__ == "__main__":
@@ -551,16 +521,16 @@ if __name__ == "__main__":
     # snakeviz out.prof
 
     args = parse_arguments()
-
-    time_table = optimize_timetable(read_timetable(args.input, args.cache))
+    read_timetable(args.input, args.cache)
+    optimize_timetable()
 
     ts = time.perf_counter()
-    traveltimes, final_dest, legs = perform_lraptor(time_table, args.startpoint, args.endpoint,
+    traveltimes, final_dest, legs = perform_lraptor(args.startpoint, args.endpoint,
                                                     args.departure, args.rounds)
     logger.debug('lRaptor Algorithm executed in {} seconds'.format(time.perf_counter() - ts))
 
     if SAVE_RESULTS:
-        traveltimes, last_legs = export_results(traveltimes, legs, time_table)
+        traveltimes, last_legs = export_results(traveltimes, legs)
 
     journey = reconstruct_journey(final_dest, legs)
-    print_journey(journey, time_table, args.departure)
+    print_journey(journey, args.departure)
