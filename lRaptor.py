@@ -306,7 +306,8 @@ def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
     numberstops = max(timetable.stops.index)+1
     travel_times = np.full(shape=numberstops, fill_value=T24H, dtype=np.dtype(np.int32))
     last_leg = np.full(shape=(numberstops, 2), fill_value=(-1, 0), dtype=np.dtype(np.int32, np.int32))
-    new_stops = tripfilter = []
+    new_stops = []
+    tripfilter = []
     # Filter timetable stop times, keep only coming 6 hours
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     timetable.stop_times_filtered = timetable.stop_times[mask].copy()
@@ -469,10 +470,10 @@ def optimize_timetable():
     timetable.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
                          axis=1, inplace=True)
     timetable.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
+    timetable.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
     # Create dataset for mapping stop_ids to trips
     timetable.stop_times_for_trips = timetable.stop_times.copy()
     # Clean stops data and add index for stop_id
-    timetable.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
     # Lookup table for parent_station to platforms
     timetable.station2stops = timetable.stops[['parent_station', 'stop_id']].set_index('parent_station')
     # Determine transfer stations (more than two direct destinations reachable)
@@ -489,10 +490,11 @@ def optimize_timetable():
     timetable.transfers = timetable.transfers.groupby('parent_station').count()
     timetable.transfers['transfer_station'] = timetable.transfers['next_stop_id'] > 2
     timetable.transfers.drop('next_stop_id', 1, inplace=True)
-    # Add transfer info to the stops info
+    # Move ID's to index
     timetable.stops.set_index('stop_id', inplace=True)
     timetable.stop_times.set_index('stop_id', inplace=True)
     timetable.stop_times_for_trips.set_index('trip_id', inplace=True)
+    # Add transfer info to the stops info
     timetable.stops = timetable.stops.merge(timetable.transfers, left_on='parent_station', right_index=True)
 
     # Renumber stop_id's
@@ -513,6 +515,14 @@ def optimize_timetable():
     timetable.trips.trip_id = timetable.trips.trip_id.map(d)
     timetable.stop_times.trip_id = timetable.stop_times.trip_id.map(d)
     timetable.stop_times_for_trips.index = timetable.stop_times_for_trips.index.map(d)
+
+    # Transform station ID's (stopareas) to numerical id's
+    d = pd.DataFrame(timetable.stops.parent_station.unique(), columns=['station_id'])
+    d = d.sort_values('station_id')
+    d['new'] = range(1, len(d) + 1)
+    d = d.set_index('station_id').to_dict()['new']
+    timetable.station2stops.index = timetable.station2stops.index.map(d)
+    timetable.stops.parent_station = timetable.stops.parent_station.map(d)
 
 
 if __name__ == "__main__":

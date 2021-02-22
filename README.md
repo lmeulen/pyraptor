@@ -26,7 +26,8 @@ times a possible new arrival time is checked (k=2), is counted.
 |limit journey to 1h from transfer time | 316 | 10.974 |
 | only add transfers on transfer stations | 316 | 9.948 |
 | filter trips in traverse trips | 316 | 4.279
-Due to the filtering om trips checked in a previous round, the following scenario is no longer possible:
+
+Due to the filtering on trips checked in a previous round, the following scenario is no longer possible:
 
 - Sprinter A - B
 - Intercity B - C
