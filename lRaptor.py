@@ -173,21 +173,19 @@ def get_trip_ids_for_stop(timetable, stop_id, departure_time, forward=60 * 60 * 
     return potential_trips
 
 
-def traverse_trips(timetable, current_ids, traveltime_stops,
-                   last_leg_orig, departure_time, filter_trips):
+def traverse_trips(timetable, current_ids, traveltime_stops, last_leg, departure_time, filter_trips):
     """ Iterator through the stops reachable and add all new reachable stops
         by following all trips from the reached stations. Trips are only followed
         in the direction of travel and beyond already added points
     :param timetable: Timetable data
     :param current_ids: Current stops reached
     :param traveltime_stops: numpy array with traveltimes to reached stops
-    :param last_leg_orig: List of last leg to reached stations
+    :param last_leg: List of last leg to reached stations
     :param departure_time: Departure time
     :param filter_trips: trips to filter from the list of potential trips
     """
 
     # prevent upstream mutation of dictionary
-    extended_last_leg = copy(last_leg_orig)
     new_stops = []
 
     baseline_filter_trips = copy(filter_trips)
@@ -219,32 +217,40 @@ def traverse_trips(timetable, current_ids, traveltime_stops,
                 arrive_time_adjusted = arrive_time - departure_time
 
                 # only update if does not exist yet or is faster
-                # old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
                 old_value = traveltime_stops[arrive_stop_id]
                 if arrive_time_adjusted < old_value:
-                    extended_last_leg[arrive_stop_id] = (potential_trip, ref_stop_id)
+                    last_leg[arrive_stop_id] = (potential_trip, ref_stop_id)
                     traveltime_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
 
     logger.debug('         Evaluations    : {}'.format(i))
     filter_trips = list(set(filter_trips))
-    return extended_last_leg, new_stops, filter_trips
+    return new_stops, filter_trips
 
 
-def add_transfer_time(timetable, current_ids, traveltime_stops,
-                      last_leg_orig, transfer_cost=TRANSFER_COST):
+def get_transfer_time(stop_from, stop_to, timesec, dow):
+    """
+    Calculate the transfer time from a stop to another stop (usually two platforms at one station
+    :param stop_from: Origin platform
+    :param stop_to: Destination platform
+    :param timesec: Time of day (seconds since midnight)
+    :param dow: day of week (Monday = 0, Tuesday = 1, ...)
+    :return:
+    """
+    return TRANSFER_COST
+
+
+def add_transfer_time(timetable, current_ids, traveltime_stops, last_leg):
     """
     Add transfers between platforms
     :param timetable:
     :param current_ids:
     :param traveltime_stops:
-    :param last_leg_orig:
-    :param transfer_cost:
+    :param last_leg:
     :return:
     """
 
     # prevent upstream mutation of dictionary
-    extended_last_leg = copy(last_leg_orig)
     new_stops = []
 
     # add in transfers to other platforms
@@ -254,20 +260,20 @@ def add_transfer_time(timetable, current_ids, traveltime_stops,
 
         # Only add transfers if it is a transfer station
         if stopdata['transfer_station']:
-            # time to reach new nearby stops is the transfer cost plus arrival at last stop
-            arrive_time_adjusted = traveltime_stops[stop_id] + transfer_cost
 
             # only update if currently inaccessible or faster than currrent option
             # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
             for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
-                # old_value = extended_time_to_stops.get(arrive_stop_id, T24H)
+                # time to reach new nearby stops is the transfer cost plus arrival at last stop
+                time_sofar = traveltime_stops[stop_id]
+                arrive_time_adjusted = time_sofar + get_transfer_time(stop_id, arrive_stop_id, time_sofar, 0)
                 old_value = traveltime_stops[arrive_stop_id]
                 if arrive_time_adjusted < old_value:
-                    extended_last_leg[arrive_stop_id] = (0, stop_id)
+                    last_leg[arrive_stop_id] = (0, stop_id)
                     traveltime_stops[arrive_stop_id] = arrive_time_adjusted
                     new_stops.append(arrive_stop_id)
 
-    return extended_last_leg, new_stops
+    return new_stops
 
 
 def determine_parameters(timetable, start_name, end_name, departure_time):
@@ -323,47 +329,47 @@ def perform_lraptor(timetable, departure_name, arrival_name, departure_time, ite
     # initialize lookup with start node taking 0 seconds to reach
     k_results = {}
     traveltime_stops = np.full(shape=max(timetable.stops.index)+1, fill_value=T24H, dtype=np.dtype(np.int32))
-    reached_stops_last_leg = {}
-    new_stops_total = []
-    filter_trips = []
+    reached_stops_last_leg = np.full(shape=(max(timetable.stops.index)+1, 2),
+                                     fill_value=(-1, 0), dtype=np.dtype(np.int32, np.int32))
+    new_stops = []
+    tripfilter = []
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     timetable.stop_times_filtered = timetable.stop_times[mask].copy()
 
     for from_stop in from_stops:
         traveltime_stops[from_stop] = 0
-        reached_stops_last_leg[from_stop] = (0, '')
-        new_stops_total.append(from_stop)
+        reached_stops_last_leg[from_stop] = (0, 0)
+        new_stops.append(from_stop)
     logger.debug('Starting from IDS : '.format(str(from_stops)))
 
     for k in range(1, iterations + 1):
         logger.info("Analyzing possibilities round {}".format(k))
 
         # get list of stops to evaluate in the process
-        stops_to_evaluate = list(new_stops_total)
+        stops_to_evaluate = list(new_stops)
         logger.info("    Stops to evaluate count: {}".format(len(stops_to_evaluate)))
 
         # update time to stops calculated based on stops accessible
         t = time.perf_counter()
-        reached_stops_last_leg, new_stops_travel, filter_trips = \
+        new_stops_travel, tripfilter = \
             traverse_trips(timetable, stops_to_evaluate, traveltime_stops, reached_stops_last_leg,
-                           dep_secs, filter_trips)
+                           dep_secs, tripfilter)
         logger.info("    Travel stops  calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.debug("    {} stops added".format(len(new_stops_travel)))
 
         # now add footpath transfers and update
         t = time.perf_counter()
-        reached_stops_last_leg, new_stops_transfer = \
-            add_transfer_time(timetable, new_stops_travel, traveltime_stops, reached_stops_last_leg)
+        new_stops_transfer = add_transfer_time(timetable, new_stops_travel, traveltime_stops, reached_stops_last_leg)
         logger.info("    Transfers calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.info("    {} stops added".format(len(new_stops_transfer)))
 
-        new_stops_total = set(new_stops_travel).union(new_stops_transfer)
+        new_stops = set(new_stops_travel).union(new_stops_transfer)
 
-        logger.info("    {} stops to evaluate in next round".format(len(new_stops_total)))
+        logger.info("    {} stops to evaluate in next round".format(len(new_stops)))
 
         # Store the results for this round
         k_results[k] = np.copy(traveltime_stops)
-        mask = ~timetable.stop_times_filtered.trip_id.isin(filter_trips)
+        mask = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
         timetable.stop_times_filtered = timetable.stop_times_filtered[mask]
     # Determine the best destionation ID, destination is a platform.
     dest_id = final_destination(to_stops, traveltime_stops)
@@ -419,7 +425,7 @@ def export_results(k, fd, tt):
 def reconstruct_journey(destination, legs_list):
     j = []
     current = destination
-    while current != '':
+    while current != 0:
         t = legs_list[current]
         j.append((t[1], t[0], current))
         current = t[1]
