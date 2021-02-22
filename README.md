@@ -199,9 +199,9 @@ Overview of all stoplocations in the network. A stoplocaiton is a platform at a 
 | --- | --- | --- |
 | index           |     int32 | ID of the stoplocation (platform at a station) (stop_id)
 | stop_name       |    object | Name of the station where the stop location is located 
-| parent_station  |    object | Parent station, station
+| parent_station  |    object | Parent station, ID
 | platform_code   |    object | Name of the platform of the stop location
-| transfer_Station  |  bool  | True, if it is a transferstation 
+| transfer_Station  |  bool   | True, if it is a transferstation 
 
 ## calendar
 Not used
@@ -222,7 +222,7 @@ A lookup table containg all stations (stoparea's) and their asociated stops
 
 | field | type | description |
 | --- | --- | --- |
-| index | str | ID of the station (stoparea:XXXXX)
+| index   | int32 | ID of the station
 | stop_id | int32 | ID of a platform located at this station. One row per platform
 
 ## stop_times_for_trips
@@ -244,5 +244,5 @@ A station with more than two next stops is a transfer station
 
 | field | type | description |
 | --- | --- | --- |
-| index             |   str | Station ID
-| transfer_Station  |  bool  | True, if it is a transferstation 
+| index             |  int32 | Station ID
+| transfer_Station  |   bool  | True, if it is a transferstation 
