@@ -218,7 +218,7 @@ A subset of the original stop_times. Filtered to contain only the coming 6 hours
 |departure_time       |    int64 | Departure time from the stop location
 
 ## station2stops
-A lookup table containg all stations (stoparea's) and their asociated stops
+A lookup table containg all stations and their asociated stops
 
 | field | type | description |
 | --- | --- | --- |
