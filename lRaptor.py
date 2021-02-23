@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 # Default transfer time is 3 minutes
 TRANSFER_COST = (3 * 60)
-SAVE_RESULTS = False
+SAVE_RESULTS = True
 T24H = 24 * 60 * 60
 T6H = 6 * 60 * 60
 T1H = 1 * 60 * 60
@@ -192,7 +192,8 @@ def traverse_trips(ids, bag, departure_time, filter_trips):
             arrivals = zip(stop_times.arrival_time, stop_times.stop_id)
             for arrive_time, arrive_stop_id in arrivals:
                 i += 1
-                # evaluations.append((k, start_stop, trip,arrive_stop_id, arrive_time))
+                if SAVE_RESULTS:
+                    evaluations.append((k, start_stop, trip,arrive_stop_id, arrive_time))
                 # time to reach is diff from start time to arrival (plus any baseline cost)
                 arrive_time_adjusted = arrive_time - departure_time
 
@@ -283,15 +284,15 @@ def final_destination(to_ids, bag):
         if bag[to_id][0] < distance:
             distance = bag[to_id][0]
             final_id = to_id
-    print(final_id)
     return final_id
 
 
-def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
+def perform_lraptor(departure_name, arrival_name, departure_date, departure_time, iterations):
     """
     Perform the Raptor algorithm
     :param departure_name: Name of departure location
     :param arrival_name: Name of arrival location
+    :param departure_date: Date of departure, str format (yyyymmhh)
     :param departure_time: Time of departure, str format (hh:mm:sss)
     :param iterations: Number of iterations to perform
     :return:
@@ -310,9 +311,11 @@ def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
     bag = np.full(shape=(numberstops, 3), fill_value=(T24H, 0, -1), dtype=np.dtype(np.int32, np.int32, np.int32))
     new_stops = []
     tripfilter = []
-    # Filter timetable stop times, keep only coming 6 hours
-    mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
-    timetable.stop_times_filtered = timetable.stop_times[mask].copy()
+    # Filter timetable stop times, keep only coming 6 hours on date of departure
+    trips = timetable.trips[timetable.trips.date == departure_date]['trip_id'].values
+    mask1 = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
+    mask2 = timetable.stop_times.trip_id.isin(trips)
+    timetable.stop_times_filtered = timetable.stop_times[mask1 & mask2].copy()
 
     for from_stop in from_stops:
         bag[from_stop] = (0, 0, 0)
@@ -354,26 +357,27 @@ def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
     return k_results, dest_id, bag
 
 
-def export_results(k, bag):
+def export_results(traveltime, bag):
     """
     Export results to a CSV file with stations and traveltimes (per iteration)
-    :param k: datastructure with results per iteration
+    :param traveltime: datastructure with results per iteration
     :param bag: Final destination last leg
     :return: DataFrame with the results exported
     """
+    global evaluations
     filename1 = 'res_{date:%Y%m%d_%H%M%S}_traveltime.csv'.format(date=datetime.now())
     logger.debug('Export results to {}'.format(filename1))
     datastring = 'round,stop_id,stop_name,platform_code,travel_time\n'
-    for i in list(k.keys()):
-        locations = k[i]
+    for i in list(traveltime.keys()):
+        locations = traveltime[i]
         destination = 0
-        for traveltime in locations:
+        for tt in locations:
             stop = timetable.stops[timetable.stops.index == destination]
             if (not stop.empty) and destination < T24H:
                 name = stop['stop_name'].values[0]
                 platform = stop['platform_code'].values[0]
                 datastring += (str(i) + ',' + str(destination) + ',' + str(name) + ',' + str(platform) + ',' +
-                               str(traveltime[0]) + '\n')
+                               str(tt[0]) + '\n')
             destination = destination + 1
     df = pd.read_csv(io.StringIO(datastring), sep=",")
     df = df[['round', 'stop_name', 'travel_time']].groupby(['round', 'stop_name']).min().sort_values('travel_time')
@@ -391,7 +395,16 @@ def export_results(k, bag):
     df2 = pd.read_csv(io.StringIO(datastring), sep=",")
     df2.to_csv(filename2)
 
-    return df, df2
+    filename3 = 'res_{date:%Y%m%d_%H%M%S}_evaluations.csv'.format(date=datetime.now())
+    df3 = pd.DataFrame(evaluations, columns=['k', 'from', 'trip', 'to', 'arrival'])
+    df3 = df3.merge(timetable.stops[['stop_name', 'platform_code']], left_on='from', right_index =True)
+    df3 = df3.merge(timetable.trips, left_on='trip', right_on='trip_id')
+    df3 = df3.merge(timetable.stops[['stop_name', 'platform_code']], left_on='to', right_index =True)
+    df3 = df3.drop(['date', 'service_id'], axis=1).drop_duplicates()
+    df3.columns = ['k', 'from', 'trip', 'to', 'arrival', 'from_name', 'from_platform', 'trip_id', 'trip_number',
+                   'to_name', 'to_platform']
+    df3.arrival = df3.arrival.apply(lambda x: sec2str(x))
+    df3.to_csv(filename3)
 
 
 def reconstruct_journey(destination, bag):
@@ -442,12 +455,13 @@ def print_journey(jrny, dep_time):
 
 
 def parse_arguments():
-    # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "08:30:00" --r 2 --c True
+    # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "20210223" --t "08:30:00" --r 2 --c True
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Input directory")
     parser.add_argument("-s", "--startpoint", type=str, help="Startpoint of the journey")
     parser.add_argument("-e", "--endpoint", type=str, help="Endpoint of the journey")
-    parser.add_argument("-d", "--departure", type=str, help="Departure time hh:mm:ss")
+    parser.add_argument("-t", "--time", type=str, help="Departure time hh:mm:ss")
+    parser.add_argument("-d", "--date", type=str, help="Departure date yyyymmdd")
     parser.add_argument("-r", "--rounds", type=int, help="Number of rounds to execute the RAPTOR algorithm")
     parser.add_argument("-c", "--cache", type=str2bool, default=False, help="Use cached GTFS")
     arguments = parser.parse_args(sys.argv[1:])
@@ -455,7 +469,8 @@ def parse_arguments():
     logger.debug('Input directoy : ' + arguments.input)
     logger.debug('Start point    : ' + arguments.startpoint)
     logger.debug('End point      : ' + arguments.endpoint)
-    logger.debug('Departure time : ' + arguments.departure)
+    logger.debug('Departure time : ' + arguments.time)
+    logger.debug('Departure date : ' + arguments.date)
     logger.debug('Rounds         : ' + str(arguments.rounds))
     logger.debug('Cached GTFS    : ' + str(arguments.cache))
     return arguments
@@ -470,8 +485,9 @@ def optimize_timetable():
     timetable.stop_times.stop_id = timetable.stop_times.stop_id.astype(int)
     timetable.stops.stop_id = timetable.stops.stop_id.astype(int)
     # Remove unused columns from trips and stop_times
-    timetable.trips.drop(['route_id', 'service_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
+    timetable.trips.drop(['route_id', 'trip_headsign', 'trip_long_name', 'direction_id', 'shape_id'],
                          axis=1, inplace=True)
+    timetable.trips = timetable.trips.merge(timetable.calendar[['service_id', 'date']], on='service_id')
     timetable.stop_times.drop(['shape_dist_traveled'], axis=1, inplace=True)
     timetable.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
     # Create dataset for mapping stop_ids to trips
@@ -538,14 +554,11 @@ if __name__ == "__main__":
     optimize_timetable()
 
     ts = time.perf_counter()
-    traveltimes, final_dest, stopbag = perform_lraptor(args.startpoint, args.endpoint,
-                                                       args.departure, args.rounds)
+    traveltime, final_dest, stopbag = perform_lraptor(args.startpoint, args.endpoint, args.date, args.time, args.rounds)
     logger.debug('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
 
     if SAVE_RESULTS:
-        traveltimes, last_legs = export_results(traveltimes, stopbag)
+        export_results(traveltime, stopbag)
 
     journey = reconstruct_journey(final_dest, stopbag)
-    print_journey(journey, args.departure)
-
-    # pd.DataFrame(evaluations, columns=['k', 'from', 'trip', 'to', 'arrival']).to_csv("foo.csv")
+    print_journey(journey, args.time)
