@@ -57,41 +57,50 @@ After performing the analysis, the journey is reconstructed and printed. The jou
 since it is not build during analysis. For performance reasons, only the last
 leg to each reached destination is kept and by traversing these backwards the route can be
 reconstructed.
+
 The `perform_lRaptor(..)` method consists of the following steps:
 ```
 def perform_lraptor(departure_name, arrival_name, departure_time, iterations):
-
-    (from_stops, to_stops, dep_secs) = determine_parameters(...)
+    global timetable
+    from_stops, to_stops, dep_secs = determine_parameters(departure_name, arrival_name, departure_time)
 
     # initialize lookup with start node taking 0 seconds to reach
     k_results = {}
-    numberstops = max(timetable.stops.index)+1
-    travel_times = np.full(shape=numberstops, fill_value=T24H, dtype=np.dtype(np.int32))
-    last_leg = np.full(shape=(numberstops, 2), fill_value=(-1, 0), dtype=np.dtype(np.int32, np.int32))
-    new_stops = tripfilter = []
-    # Filter timetable stop times, keep only coming 6 hours
+    # bag contains per stop (travel_time, trip_id, previous_stop) trip_id is 0 in case of a transfer
+    bag = np.full(shape=(max(timetable.stops.index)+1, 3), fill_value=(T24H, 0, -1), 
+                  dtype=np.dtype(np.int32, np.int32, np.int32))
+    new_stops = []
+    tripfilter = []
     mask = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
-    timetable.stop_times_filtered = timetable.stop_times[mask].copy()
+    timetable.stop_times_filtered = timetable.stop_times[mask]
 
     for from_stop in from_stops:
-        travel_times[from_stop] = 0
-        last_leg[from_stop] = (0, 0)
+        bag[from_stop] = (0, 0, 0)
         new_stops.append(from_stop)
 
-    for k in [1,2,..]:
+    for k in range(1, iterations + 1):
 
-        new_stops_travel = traverse_trips(new_stops, travel_times, last_leg, dep_secs, tripfilter)
+        new_stops_travel = traverse_trips(new_stops, bag, dep_secs, tripfilter)
+        new_stops_transfer = add_transfer_time(new_stops_travel, bag)
 
-        new_stops_transfer = add_transfer_time(new_stops_travel, travel_times, last_leg)
+        new_stops = set(new_stops_travel).union(new_stops_transfer)
 
-        new_stops = new_stops_travel + new_stops_transfer
-        k_results[k] = reached_stops
-        # filter trips from stop times, will not be evaluated again
-        mask = ~timetable.stop_times_filtered.trip_id.isin(filter_trips)
+        k_results[k] = np.copy(bag)
+        mask = ~timetable.stop_times_filtered.trip_id.isin(tripfilter)
         timetable.stop_times_filtered = timetable.stop_times_filtered[mask]
-
-    dest_id = final_destination(to_stops, reached_stops)
+    # Determine the best destionation ID, destination is a platform.
+    dest_id = final_destination(to_stops, bag)
+    return k_results, dest_id, bag
 ```
+
+The main data structures are:
+- `bag = np.full(shape=(numberstops, 3), fill_value=(T24H, 0, -1), dtype=np.dtype(np.int32, np.int32, np.int32))` This 
+datastructure stores for each stoplocation in the network the tuple (traveltime, trip_id, previous_stop). The traveltime
+  is the time between requested departure and arrival at this stoplocation. The trip_id is the last trip to reach the
+  stoplocation and the previous_stop is the location where the thip trip_is boarded.
+-  `new_stops = []` The list of stops to evaluate in the current round of the raptor algorithm
+- `tripfilter = []` The list of trips already traversed trips.
+
 One calcalation round consists of a `traverse_trips(...)` and a `add_transfer_time(..)` combination. The first 
 calculates all reachable stops by train, given the already reached stops (starts with departure station). The
 latter adds transfer time to all other platforms of the reached stations. After this, handled trips are removed
@@ -148,7 +157,22 @@ def final_destination(to_ids, reached_ids):
 
 ```
 
-Remember that the number of stop_ids is determined by the number of platforms at the destination station. 
+Remember that the number of stop_ids is determined by the number of platforms at the destination station.
+
+### Journey reconstruction
+The journey to a destination is restored from the bag:
+```
+def reconstruct_journey(destination, bag):
+    jrny = []
+    current = destination
+    while current != 0:
+        jrny.append((bag[current][2], bag[current][1], current))
+        current = bag[current][2]
+    jrny.reverse()
+    return jrny
+```
+Th resulting jpurney is an array of legs. `[(previous_stop, trip_id, 'current_stop'')]`. For leg n the previous_stop 
+is equal to the current_stop of n-1. For transfers, the trip_id is '0'. 
 
 # Data structure
 
