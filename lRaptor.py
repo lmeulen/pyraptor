@@ -316,7 +316,7 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
 
     # initialize lookup with start node taking 0 seconds to reach
     k_results = {}
-    numberstops = max(timetable.stops.index)
+    numberstops = max(timetable.stops.index)+1
     # bag contains per stop (travel_time, trip_id, previous_stop) trip_id is 0 in case of a transfer
     bag = np.full(shape=(numberstops, 3), fill_value=(T24H, 0, -1), dtype=np.dtype(np.int32, np.int32, np.int32))
     new_stops = []
@@ -341,13 +341,13 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
         # update time to stops calculated based on stops accessible
         t = time.perf_counter()
         new_stops_travel = traverse_trips(new_stops, bag, dep_secs, tripfilter)
-        logger.info("    Travel stops  calculated in {:0.4f} seconds".format(time.perf_counter() - t))
+        logger.debug("    Travel stops  calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.debug("    {} stops added".format(len(new_stops_travel)))
 
         # now add footpath transfers and update
         t = time.perf_counter()
         new_stops_transfer = add_transfer_time(new_stops_travel, bag)
-        logger.info("    Transfers calculated in {:0.4f} seconds".format(time.perf_counter() - t))
+        logger.debug("    Transfers calculated in {:0.4f} seconds".format(time.perf_counter() - t))
         logger.debug("    {} stops added".format(len(new_stops_transfer)))
 
         new_stops = set(new_stops_travel).union(new_stops_transfer)
@@ -621,7 +621,7 @@ def main(args):
 
     ts = time.perf_counter()
     traveltime, final_dest, stopbag = perform_lraptor(args.startpoint, args.endpoint, args.date, args.time, args.rounds)
-    logger.debug('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
+    logger.info('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
 
     if SAVE_RESULTS:
         export_results(traveltime, stopbag)
