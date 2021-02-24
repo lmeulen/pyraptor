@@ -6,6 +6,7 @@ import numpy as np
 import time
 import logging
 import argparse
+import pickle
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -19,7 +20,7 @@ T3M = 3 * 60
 
 # create logger
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger.addHandler(ch)
@@ -360,7 +361,7 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
     # Determine the best destionation ID, destination is a platform.
     dest_id = final_destination(to_stops, bag)
     if dest_id != 0:
-        logger.info("Destination code   : {} ".format(dest_id))
+        logger.debug("Destination code   : {} ".format(dest_id))
         logger.info("Time to destination: {} minutes".format(bag[dest_id][0] / 60))
     else:
         logger.info("Destination unreachable with given parameters")
@@ -463,13 +464,14 @@ def print_journey(jrny, dep_time):
 def parse_arguments():
     # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "20210223" --t "08:30:00" --r 2 --c True
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", type=str, help="Input directory")
-    parser.add_argument("-s", "--startpoint", type=str, help="Startpoint of the journey")
-    parser.add_argument("-e", "--endpoint", type=str, help="Endpoint of the journey")
-    parser.add_argument("-t", "--time", type=str, help="Departure time hh:mm:ss")
-    parser.add_argument("-d", "--date", type=str, help="Departure date yyyymmdd")
-    parser.add_argument("-r", "--rounds", type=int, help="Number of rounds to execute the RAPTOR algorithm")
-    parser.add_argument("-c", "--cache", type=str2bool, default=False, help="Use cached GTFS")
+    parser.add_argument("-i", "--input", type=str, default='gtfs-extracted', help="Input directory")
+    parser.add_argument("-s", "--startpoint", type=str, default='Arnhem Zuid', help="Startpoint of the journey")
+    parser.add_argument("-e", "--endpoint", type=str, default='Oosterbeek', help="Endpoint of the journey")
+    parser.add_argument("-t", "--time", type=str, default='08:30', help="Departure time hh:mm:ss")
+    parser.add_argument("-d", "--date", type=str, default='20210224', help="Departure date yyyymmdd")
+    parser.add_argument("-r", "--rounds", type=int, default=8, help="Number of rounds to execute the RAPTOR algorithm")
+    parser.add_argument("-c", "--cache", type=str2bool, default=True, help="Use cached GTFS")
+    parser.add_argument("-f", "--full", type=str2bool, default=False, help="Use cached GTFS")
     arguments = parser.parse_args(sys.argv[1:])
     logger.debug('Parameters     : ' + str(sys.argv[1:]))
     logger.debug('Input directoy : ' + arguments.input)
@@ -630,11 +632,35 @@ def main(args):
     print_journey(journey, args.time)
 
 
+def full(args):
+    if args.cache & os.path.exists('optimized_timetable'):
+        read_optimized_data()
+    else:
+        read_timetable(args.input)
+        optimize_timetable()
+        store_optimized_data()
+
+    ts = time.perf_counter()
+    res_dict = {}
+    for st in timetable.stops.stop_name.unique():
+        logger.info('Calculating network from : {}'.format(st))
+        traveltime, final_dest, stopbag = perform_lraptor(st, args.endpoint, args.date, args.time, args.rounds)
+        res_dict[st] = (traveltime, stopbag)
+    logger.info('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
+
+    with open(os.path.join('results', 'res_{date:%Y%m%d_%H%M%S}_dict.pcl'.format(date=datetime.now())), 'wb') as f:
+        pickle.dump(res_dict, f, pickle.HIGHEST_PROTOCOL)
+    logger.info('Finished full network scan')
+
+
 if __name__ == "__main__":
     # python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
     #                                           --e "Oosterbeek" --d 20210223 --t "08:30:00" --r 2 --c True
     # snakeviz out.prof
     # main(Namespace(startpoint='Arnhem Zuid', endpoint='Oosterbeek', date='20210223' , time='08:30:00',
     #                cache=True, input='gtfs-extracted', rounds=2))
-
-    main(parse_arguments())
+    a = parse_arguments()
+    if a.full:
+        full(a)
+    else:
+        main(a)
