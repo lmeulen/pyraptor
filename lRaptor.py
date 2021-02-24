@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 # Default transfer time is 3 minutes
 TRANSFER_COST = (3 * 60)
-SAVE_RESULTS = True
+SAVE_RESULTS = False
 T24H = 24 * 60 * 60
 T6H = 6 * 60 * 60
 T1H = 1 * 60 * 60
@@ -37,6 +37,8 @@ class Timetable:
     station2stops = None
     stop_times_for_trips = None
     transfers = None
+    s2s_indexer = None
+    s2s_data = None
 
 
 timetable = Timetable()
@@ -235,14 +237,15 @@ def add_transfer_time(ids, bag):
 
     # add in transfers to other platforms
     for stop in ids:
-        stopdata = timetable.stops[timetable.stops.index == stop].iloc[0]
-        stoparea = stopdata['parent_station']
+        # stopdate is numpy array with index stopid and tuple (name, station, platform,transfer)
+        stopdata = timetable.stops_array[stop]
+        stoparea = stopdata[1]
 
         # Only add transfers if it is a transfer station
-        if stopdata['transfer_station']:
+        if stopdata[3]:
             # only update if currently inaccessible or faster than currrent option
-            # for arrive_stop_id in timetable.stops[timetable.stops.parent_station == stoparea]['stop_id'].values:
-            for arrive_stop_id in timetable.station2stops[timetable.station2stops.index == stoparea]['stop_id'].values:
+            stopidx = timetable.s2s_indexer[stoparea]
+            for arrive_stop_id in timetable.s2s_data[stopidx[0]:stopidx[0]+stopidx[1]]:
                 # time to reach new nearby stops is the transfer cost plus arrival at last stop
                 time_sofar = bag[stop][0]
                 arrive_time_adjusted = time_sofar + get_transfer_time(stop, arrive_stop_id, time_sofar, 0)
@@ -306,7 +309,7 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
 
     # initialize lookup with start node taking 0 seconds to reach
     k_results = {}
-    numberstops = max(timetable.stops.index)+1
+    numberstops = max(timetable.stops.index)
     # bag contains per stop (travel_time, trip_id, previous_stop) trip_id is 0 in case of a transfer
     bag = np.full(shape=(numberstops, 3), fill_value=(T24H, 0, -1), dtype=np.dtype(np.int32, np.int32, np.int32))
     new_stops = []
@@ -357,10 +360,10 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
     return k_results, dest_id, bag
 
 
-def export_results(traveltime, bag):
+def export_results(traveltimes, bag):
     """
     Export results to a CSV file with stations and traveltimes (per iteration)
-    :param traveltime: datastructure with results per iteration
+    :param traveltimes: datastructure with results per iteration
     :param bag: Final destination last leg
     :return: DataFrame with the results exported
     """
@@ -368,8 +371,8 @@ def export_results(traveltime, bag):
     filename1 = 'res_{date:%Y%m%d_%H%M%S}_traveltime.csv'.format(date=datetime.now())
     logger.debug('Export results to {}'.format(filename1))
     datastring = 'round,stop_id,stop_name,platform_code,travel_time\n'
-    for i in list(traveltime.keys()):
-        locations = traveltime[i]
+    for i in list(traveltimes.keys()):
+        locations = traveltimes[i]
         destination = 0
         for tt in locations:
             stop = timetable.stops[timetable.stops.index == destination]
@@ -397,9 +400,9 @@ def export_results(traveltime, bag):
 
     filename3 = 'res_{date:%Y%m%d_%H%M%S}_evaluations.csv'.format(date=datetime.now())
     df3 = pd.DataFrame(evaluations, columns=['k', 'from', 'trip', 'to', 'arrival'])
-    df3 = df3.merge(timetable.stops[['stop_name', 'platform_code']], left_on='from', right_index =True)
+    df3 = df3.merge(timetable.stops[['stop_name', 'platform_code']], left_on='from', right_index=True)
     df3 = df3.merge(timetable.trips, left_on='trip', right_on='trip_id')
-    df3 = df3.merge(timetable.stops[['stop_name', 'platform_code']], left_on='to', right_index =True)
+    df3 = df3.merge(timetable.stops[['stop_name', 'platform_code']], left_on='to', right_index=True)
     df3 = df3.drop(['date', 'service_id'], axis=1).drop_duplicates()
     df3.columns = ['k', 'from', 'trip', 'to', 'arrival', 'from_name', 'from_platform', 'trip_id', 'trip_number',
                    'to_name', 'to_platform']
@@ -492,6 +495,7 @@ def optimize_timetable():
     timetable.stops.drop(['stop_lat', 'stop_lon', 'stop_code', 'zone_id'], axis=1, inplace=True)
     # Create dataset for mapping stop_ids to trips
     timetable.stop_times_for_trips = timetable.stop_times.copy()
+    timetable.stop_times_for_trips = timetable.stop_times_for_trips.sort_index()
     # Clean stops data and add index for stop_id
     # Lookup table for parent_station to platforms
     timetable.station2stops = timetable.stops[['parent_station', 'stop_id']].set_index('parent_station')
@@ -519,7 +523,7 @@ def optimize_timetable():
     # Renumber stop_id's
     d = pd.DataFrame(timetable.stops.index.unique())
     d = d.sort_values('stop_id')
-    d['new'] = range(1, len(d) + 1)
+    d['new'] = range(0, len(d) )
     d = d.set_index('stop_id').to_dict()['new']
     timetable.stops.index = timetable.stops.index.map(d)
     timetable.stop_times.index = timetable.stop_times.index.map(d)
@@ -529,7 +533,7 @@ def optimize_timetable():
     # Renumber trip_id's
     d = pd.DataFrame(timetable.trips.trip_id.unique(), columns=['trip_id'])
     d = d.sort_values('trip_id')
-    d['new'] = range(1, len(d) + 1)
+    d['new'] = range(0, len(d))
     d = d.set_index('trip_id').to_dict()['new']
     timetable.trips.trip_id = timetable.trips.trip_id.map(d)
     timetable.stop_times.trip_id = timetable.stop_times.trip_id.map(d)
@@ -538,15 +542,32 @@ def optimize_timetable():
     # Transform station ID's (stopareas) to numerical id's
     d = pd.DataFrame(timetable.stops.parent_station.unique(), columns=['station_id'])
     d = d.sort_values('station_id')
-    d['new'] = range(1, len(d) + 1)
+    d['new'] = range(0, len(d))
     d = d.set_index('station_id').to_dict()['new']
     timetable.station2stops.index = timetable.station2stops.index.map(d)
     timetable.stops.parent_station = timetable.stops.parent_station.map(d)
 
+    # Add numpy array with stop info
+    timetable.stops_array = timetable.stops.sort_index().to_numpy()
+
+    # Add numy arrays with station 2 stops information
+    # datastructure still present, but not faster than the origial
+    # dataframe selection in add_transfer_time
+    dataset = timetable.station2stops.sort_index()
+    cntidx = len(dataset.index.unique())
+    cntdata = len(dataset)
+    timetable.s2s_indexer = np.zeros(shape=(cntidx, 2), dtype=np.dtype(np.int32, np.int32))
+    timetable.s2s_data = np.zeros(shape=cntdata, dtype=np.int32)
+    timetable.s2s_data = dataset.stop_id.to_numpy()
+
+    idxdata = dataset.groupby(dataset.index).count()
+    idxdata['start'] = idxdata.stop_id.cumsum().shift(1).fillna(0).astype(int)
+    timetable.s2s_indexer = idxdata[['start', 'stop_id']].to_numpy()
+
 
 if __name__ == "__main__":
     # python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
-    #                                           --e "Oosterbeek" --d "08:30:00" --r 2 --c True
+    #                                           --e "Oosterbeek" --d 20210223 --t "08:30:00" --r 2 --c True
     # snakeviz out.prof
 
     args = parse_arguments()
