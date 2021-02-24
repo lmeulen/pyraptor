@@ -439,20 +439,16 @@ def print_journey(jrny, dep_time):
     if len(jrny) > 0:
         for leg in jrny:
             if leg[1] != 0:
-                a = timetable.stops[timetable.stops.index == leg[0]]
-                b = timetable.stops[timetable.stops.index == leg[2]]
+                a = timetable.stops_array[leg[0]]
+                b = timetable.stops_array[leg[2]]
                 t = timetable.trips[timetable.trips.trip_id == leg[1]]
-                frm = a.stop_name.values[0]
-                frm_p = a.platform_code.values[0]
-                to = b.stop_name.values[0]
-                to_p = b.platform_code.values[0]
                 tr = t.trip_short_name.values[0]
                 dep = timetable.stop_times[(timetable.stop_times.index == leg[0]) &
                                            (timetable.stop_times.trip_id == leg[1])].departure_time.values
                 arr = timetable.stop_times[(timetable.stop_times.index == leg[2]) &
                                            (timetable.stop_times.trip_id == leg[1])].arrival_time.values
-                logger.info(str(sec2str(dep)) + " " + frm.ljust(20) + '(p. ' + frm_p.rjust(3) + ') TO ' +
-                            str(sec2str(arr)) + " " + to.ljust(20) + '(p. ' + to_p.rjust(3) + ') WITH ' + str(tr))
+                logger.info(str(sec2str(dep)) + " " + a[0].ljust(20) + '(p. ' + a[2].rjust(3) + ') TO ' +
+                            str(sec2str(arr)) + " " + b[0].ljust(20) + '(p. ' + b[2].rjust(3) + ') WITH ' + str(tr))
 
         firstdepart = jrny[0] if jrny[0][1] != 0 else jrny[1]
         firstdepart = timetable.stop_times[(timetable.stop_times.index == firstdepart[0]) &
