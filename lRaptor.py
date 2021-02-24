@@ -19,7 +19,7 @@ T3M = 3 * 60
 
 # create logger
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 logger.addHandler(ch)
@@ -37,8 +37,17 @@ class Timetable:
     station2stops = None
     stop_times_for_trips = None
     transfers = None
+    stops_array = None
     s2s_indexer = None
     s2s_data = None
+
+
+class Namespace:
+    """
+    Namespace class for dummy arguments
+    """
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 
 timetable = Timetable()
@@ -85,52 +94,36 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def read_timetable(gtfs_dir, use_cache):
+def read_timetable(gtfs_dir):
     """
     Read the timetable information from either cache or GTFS directory
     Global parameter READ_GTFS determines cache or reading original GTFS files
     :return:
     """
     global timetable
-    start_time = time.perf_counter()
-    if use_cache & os.path.exists(os.path.join('timetable_cache', 'stop_times.pcl')):
-        timetable.agencies = pd.read_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
-        timetable.routes = pd.read_pickle(os.path.join('timetable_cache', 'routes.pcl'))
-        timetable.trips = pd.read_pickle(os.path.join('timetable_cache', 'trips.pcl'))
-        timetable.calendar = pd.read_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
-        timetable.stop_times = pd.read_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
-        timetable.stops = pd.read_pickle(os.path.join('timetable_cache', 'stops.pcl'))
-    else:
-        timetable.agencies = pd.read_csv(os.path.join(gtfs_dir, 'agency.txt'))
+    logger.debug('Reading GTFS data')
+    timetable.agencies = pd.read_csv(os.path.join(gtfs_dir, 'agency.txt'))
 
-        timetable.routes = pd.read_csv(os.path.join(gtfs_dir, 'routes.txt'))
+    timetable.routes = pd.read_csv(os.path.join(gtfs_dir, 'routes.txt'))
 
-        timetable.trips = pd.read_csv(os.path.join(gtfs_dir, 'trips.txt'))
-        timetable.trips.trip_short_name = timetable.trips.trip_short_name.astype(int)
-        timetable.trips.shape_id = timetable.trips.shape_id.astype('Int64')
+    timetable.trips = pd.read_csv(os.path.join(gtfs_dir, 'trips.txt'))
+    timetable.trips.trip_short_name = timetable.trips.trip_short_name.astype(int)
+    timetable.trips.shape_id = timetable.trips.shape_id.astype('Int64')
 
-        timetable.calendar = pd.read_csv(os.path.join(gtfs_dir, 'calendar_dates.txt'))
-        timetable.calendar.date = timetable.calendar.date.astype(str)
+    timetable.calendar = pd.read_csv(os.path.join(gtfs_dir, 'calendar_dates.txt'))
+    timetable.calendar.date = timetable.calendar.date.astype(str)
 
-        timetable.stop_times = pd.read_csv(os.path.join(gtfs_dir, 'stop_times.txt'))
-        timetable.stop_times.arrival_time = timetable.stop_times.apply(lambda x: str2sec(x['arrival_time']), axis=1)
-        timetable.stop_times.departure_time = timetable.stop_times.apply(lambda x: str2sec(x['departure_time']),
-                                                                         axis=1)
-        timetable.stop_times.stop_id = timetable.stop_times.stop_id.astype(str)
-        timetable.stop_times_filtered = None
+    timetable.stop_times = pd.read_csv(os.path.join(gtfs_dir, 'stop_times.txt'))
+    timetable.stop_times.arrival_time = timetable.stop_times.apply(lambda x: str2sec(x['arrival_time']), axis=1)
+    timetable.stop_times.departure_time = timetable.stop_times.apply(lambda x: str2sec(x['departure_time']),
+                                                                     axis=1)
+    timetable.stop_times.stop_id = timetable.stop_times.stop_id.astype(str)
+    timetable.stop_times_filtered = None
 
-        timetable.stops = pd.read_csv(os.path.join(gtfs_dir, 'stops.txt'))
-        # Filter out the general station codes
-        timetable.stops = timetable.stops[~timetable.stops.stop_id.str.startswith('stoparea')]
+    timetable.stops = pd.read_csv(os.path.join(gtfs_dir, 'stops.txt'))
+    # Filter out the general station codes
+    timetable.stops = timetable.stops[~timetable.stops.stop_id.str.startswith('stoparea')]
 
-        timetable.agencies.to_pickle(os.path.join('timetable_cache', 'agencies.pcl'))
-        timetable.routes.to_pickle(os.path.join('timetable_cache', 'routes.pcl'))
-        timetable.trips.to_pickle(os.path.join('timetable_cache', 'trips.pcl'))
-        timetable.calendar.to_pickle(os.path.join('timetable_cache', 'calendar.pcl'))
-        timetable.stop_times.to_pickle(os.path.join('timetable_cache', 'stop_times.pcl'))
-        timetable.stops.to_pickle(os.path.join('timetable_cache', 'stops.pcl'))
-
-    logger.info("Reading GTFS took {:0.4f} seconds".format(time.perf_counter() - start_time))
     logger.debug('Agencies  : {}'.format(len(timetable.agencies)))
     logger.debug('Routes    : {}'.format(len(timetable.routes)))
     logger.debug('Stops     : {}'.format(len(timetable.stops)))
@@ -290,6 +283,20 @@ def final_destination(to_ids, bag):
     return final_id
 
 
+def prepare_data_for_run(arrival_name, departure_name, departure_date, departure_time):
+    from_stops, to_stops, dep_secs = determine_parameters(departure_name, arrival_name, departure_time)
+    logger.debug('Departure ID : ' + str(from_stops))
+    logger.debug('Arrival ID   : ' + str(to_stops))
+    logger.debug('Time         : ' + str(dep_secs))
+
+    # Filter timetable stop times, keep only coming 6 hours on date of departure
+    trips = timetable.trips[timetable.trips.date == departure_date]['trip_id'].values
+    mask1 = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
+    mask2 = timetable.stop_times.trip_id.isin(trips)
+    timetable.stop_times_filtered = timetable.stop_times[mask1 & mask2].copy()
+    return dep_secs, from_stops, to_stops
+
+
 def perform_lraptor(departure_name, arrival_name, departure_date, departure_time, iterations):
     """
     Perform the Raptor algorithm
@@ -329,7 +336,7 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
         logger.info("Analyzing possibilities round {}".format(k))
 
         # get list of stops to evaluate in the process
-        logger.info("    Stops to evaluate count: {}".format(len(new_stops)))
+        logger.debug("    Stops to evaluate count: {}".format(len(new_stops)))
 
         # update time to stops calculated based on stops accessible
         t = time.perf_counter()
@@ -341,10 +348,10 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
         t = time.perf_counter()
         new_stops_transfer = add_transfer_time(new_stops_travel, bag)
         logger.info("    Transfers calculated in {:0.4f} seconds".format(time.perf_counter() - t))
-        logger.info("    {} stops added".format(len(new_stops_transfer)))
+        logger.debug("    {} stops added".format(len(new_stops_transfer)))
 
         new_stops = set(new_stops_travel).union(new_stops_transfer)
-        logger.info("    {} stops to evaluate in next round".format(len(new_stops)))
+        logger.debug("    {} stops to evaluate in next round".format(len(new_stops)))
 
         # Store the results for this round
         k_results[k] = np.copy(bag)
@@ -484,6 +491,7 @@ def optimize_timetable():
     Optimize the timetable for usage in the raptor algorithm
     :return:
     """
+    logger.debug('Optimizing GTFS data for algorithm')
     # stop ID's as integer
     timetable.stop_times.stop_id = timetable.stop_times.stop_id.astype(int)
     timetable.stops.stop_id = timetable.stops.stop_id.astype(int)
@@ -523,7 +531,7 @@ def optimize_timetable():
     # Renumber stop_id's
     d = pd.DataFrame(timetable.stops.index.unique())
     d = d.sort_values('stop_id')
-    d['new'] = range(0, len(d) )
+    d['new'] = range(0, len(d))
     d = d.set_index('stop_id').to_dict()['new']
     timetable.stops.index = timetable.stops.index.map(d)
     timetable.stop_times.index = timetable.stop_times.index.map(d)
@@ -551,8 +559,6 @@ def optimize_timetable():
     timetable.stops_array = timetable.stops.sort_index().to_numpy()
 
     # Add numy arrays with station 2 stops information
-    # datastructure still present, but not faster than the origial
-    # dataframe selection in add_transfer_time
     dataset = timetable.station2stops.sort_index()
     cntidx = len(dataset.index.unique())
     cntdata = len(dataset)
@@ -565,14 +571,57 @@ def optimize_timetable():
     timetable.s2s_indexer = idxdata[['start', 'stop_id']].to_numpy()
 
 
-if __name__ == "__main__":
-    # python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
-    #                                           --e "Oosterbeek" --d 20210223 --t "08:30:00" --r 2 --c True
-    # snakeviz out.prof
+def store_optimized_data():
+    """
+    Store the timetable data to the cache directory
+    :return:
+    """
+    logger.debug('Storing optimized timetable to cache directory')
+    if not os.path.exists('optimized_timetable'):
+        os.mkdir('optimized_timetable')
+    timetable.agencies.to_pickle(os.path.join('optimized_timetable', 'agencies.pcl'))
+    timetable.routes.to_pickle(os.path.join('optimized_timetable', 'routes.pcl'))
+    timetable.trips.to_pickle(os.path.join('optimized_timetable', 'trips.pcl'))
+    timetable.calendar.to_pickle(os.path.join('optimized_timetable', 'calendar.pcl'))
+    timetable.stop_times.to_pickle(os.path.join('optimized_timetable', 'stop_times.pcl'))
+    timetable.stops.to_pickle(os.path.join('optimized_timetable', 'stops.pcl'))
+    timetable.station2stops.to_pickle(os.path.join('optimized_timetable', 'station2stops.pcl'))
+    timetable.stop_times_for_trips.to_pickle(os.path.join('optimized_timetable', 'stop_times_for_trips.pcl'))
+    timetable.transfers.to_pickle(os.path.join('optimized_timetable', 'transfers.pcl'))
 
-    args = parse_arguments()
-    read_timetable(args.input, args.cache)
-    optimize_timetable()
+    np.save(os.path.join('optimized_timetable', 'stops_array.npy'), timetable.stops_array, allow_pickle=True)
+    np.save(os.path.join('optimized_timetable', 's2s_indexer.npy'), timetable.s2s_indexer, allow_pickle=True)
+    np.save(os.path.join('optimized_timetable', 's2s_data.npy'), timetable.s2s_data, allow_pickle=True)
+
+
+def read_optimized_data():
+    """
+    Read the timetable data from the cache directory
+    :return:
+    """
+    logger.debug('Using cached optimized datastructures')
+    timetable.agencies = pd.read_pickle(os.path.join('optimized_timetable', 'agencies.pcl'))
+    timetable.routes = pd.read_pickle(os.path.join('optimized_timetable', 'routes.pcl'))
+    timetable.trips = pd.read_pickle(os.path.join('optimized_timetable', 'trips.pcl'))
+    timetable.calendar = pd.read_pickle(os.path.join('optimized_timetable', 'calendar.pcl'))
+    timetable.stop_times = pd.read_pickle(os.path.join('optimized_timetable', 'stop_times.pcl'))
+    timetable.stops = pd.read_pickle(os.path.join('optimized_timetable', 'stops.pcl'))
+    timetable.station2stops = pd.read_pickle(os.path.join('optimized_timetable', 'station2stops.pcl'))
+    timetable.stop_times_for_trips = pd.read_pickle(os.path.join('optimized_timetable', 'stop_times_for_trips.pcl'))
+    timetable.transfers = pd.read_pickle(os.path.join('optimized_timetable', 'transfers.pcl'))
+
+    timetable.stops_array = np.load(os.path.join('optimized_timetable', 'stops_array.npy'), allow_pickle=True)
+    timetable.s2s_indexer = np.load(os.path.join('optimized_timetable', 's2s_indexer.npy'), allow_pickle=True)
+    timetable.s2s_data = np.load(os.path.join('optimized_timetable', 's2s_data.npy'), allow_pickle=True)
+
+
+def main(args):
+    if args.cache & os.path.exists('optimized_timetable'):
+        read_optimized_data()
+    else:
+        read_timetable(args.input)
+        optimize_timetable()
+        store_optimized_data()
 
     ts = time.perf_counter()
     traveltime, final_dest, stopbag = perform_lraptor(args.startpoint, args.endpoint, args.date, args.time, args.rounds)
@@ -583,3 +632,13 @@ if __name__ == "__main__":
 
     journey = reconstruct_journey(final_dest, stopbag)
     print_journey(journey, args.time)
+
+
+if __name__ == "__main__":
+    # python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
+    #                                           --e "Oosterbeek" --d 20210223 --t "08:30:00" --r 2 --c True
+    # snakeviz out.prof
+    # main(Namespace(startpoint='Arnhem Zuid', endpoint='Oosterbeek', date='20210223' , time='08:30:00',
+    #                cache=True, input='gtfs-extracted', rounds=2))
+
+    main(parse_arguments())
