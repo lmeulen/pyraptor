@@ -41,6 +41,7 @@ class Timetable:
     stops_array = None
     s2s_indexer = None
     s2s_data = None
+    disruptions = None
 
 
 class Namespace:
@@ -294,11 +295,12 @@ def prepare_data_for_run(arrival_name, departure_name, departure_date, departure
     trips = timetable.trips[timetable.trips.date == departure_date]['trip_id'].values
     mask1 = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     mask2 = timetable.stop_times.trip_id.isin(trips)
+
     timetable.stop_times_filtered = timetable.stop_times[mask1 & mask2].copy()
     return dep_secs, from_stops, to_stops
 
 
-def perform_lraptor(departure_name, arrival_name, departure_date, departure_time, iterations):
+def perform_lraptor(departure_name, arrival_name, departure_date, departure_time, iterations, disruptions=False):
     """
     Perform the Raptor algorithm
     :param departure_name: Name of departure location
@@ -306,6 +308,7 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
     :param departure_date: Date of departure, str format (yyyymmhh)
     :param departure_time: Time of departure, str format (hh:mm:sss)
     :param iterations: Number of iterations to perform
+    :param disruptions: Take disruptions into account (True)
     :return:
     """
     global timetable, k
@@ -322,11 +325,17 @@ def perform_lraptor(departure_name, arrival_name, departure_date, departure_time
     bag = np.full(shape=(numberstops, 3), fill_value=(T24H, 0, -1), dtype=np.dtype(np.int32, np.int32, np.int32))
     new_stops = []
     tripfilter = []
-    # Filter timetable stop times, keep only coming 6 hours on date of departure
+    # Filter timetable stop times, keep only
+    # - coming 6 hours
+    # - date of departure
+    # non disrupted trip ids
     trips = timetable.trips[timetable.trips.date == departure_date]['trip_id'].values
     mask1 = timetable.stop_times.departure_time.between(dep_secs, dep_secs + T6H)
     mask2 = timetable.stop_times.trip_id.isin(trips)
-    timetable.stop_times_filtered = timetable.stop_times[mask1 & mask2].copy()
+    mask3 = True
+    if disruptions:
+        mask3 = ~timetable.stop_times.trip_id.isin(timetable.disruptions)
+    timetable.stop_times_filtered = timetable.stop_times[mask1 & mask2 & mask3].copy()
 
     for from_stop in from_stops:
         bag[from_stop] = (0, 0, 0)
@@ -461,6 +470,33 @@ def print_journey(jrny, dep_time):
         logger.info('No journey available')
 
 
+def determine_disruptions(str_disruptions=""):
+    """
+    Determine all trip IDs that are disrupted.
+    Input: ritnumbers (so-called shortnames) and tripseries (XX00)
+    In case of a trip_serie all tripnumber XX01 through XX99 are added to the list
+    :param str_disruptions:
+    :return: True, if the list is populated
+    """
+    logger.debug(str_disruptions)
+    if str_disruptions:
+        str_ids = str_disruptions.split(" ")
+        disruptions = []
+        if (len(str_ids) > 0) & (len(str_disruptions) > 0):
+            for str_id in str_ids:
+                str_id = int(str_id)
+                if str_id % 100:
+                    disruptions.append(str_id)
+                else:
+                    for i in range(str_id + 1, str_id + 100):
+                        disruptions.append(str_id)
+        timetable.disruptions = timetable.trips[timetable.trips.trip_short_name.isin(disruptions)].trip_id.values
+        return True
+    else:
+        timetable.disruptions = []
+        return False
+
+
 def parse_arguments():
     # --i gtfs-extracted --s "Arnhem Zuid" --e "Oosterbeek" --d "20210223" --t "08:30:00" --r 2 --c True
     parser = argparse.ArgumentParser()
@@ -472,6 +508,8 @@ def parse_arguments():
     parser.add_argument("-r", "--rounds", type=int, default=8, help="Number of rounds to execute the RAPTOR algorithm")
     parser.add_argument("-c", "--cache", type=str2bool, default=True, help="Use cached GTFS")
     parser.add_argument("-f", "--full", type=str2bool, default=False, help="Use cached GTFS")
+    parser.add_argument("-x", '--excluded', type=str, default="",
+                        help="Space seperated list of disrupted tripnumbers/tripseries")
     arguments = parser.parse_args(sys.argv[1:])
     logger.debug('Parameters     : ' + str(sys.argv[1:]))
     logger.debug('Input directoy : ' + arguments.input)
@@ -590,6 +628,7 @@ def store_optimized_data():
     np.save(os.path.join('optimized_timetable', 'stops_array.npy'), timetable.stops_array, allow_pickle=True)
     np.save(os.path.join('optimized_timetable', 's2s_indexer.npy'), timetable.s2s_indexer, allow_pickle=True)
     np.save(os.path.join('optimized_timetable', 's2s_data.npy'), timetable.s2s_data, allow_pickle=True)
+    np.save(os.path.join('optimized_timetable', 'disruptions.npy'), timetable.disruptions, allow_pickle=True)
 
 
 def read_optimized_data():
@@ -611,56 +650,64 @@ def read_optimized_data():
     timetable.stops_array = np.load(os.path.join('optimized_timetable', 'stops_array.npy'), allow_pickle=True)
     timetable.s2s_indexer = np.load(os.path.join('optimized_timetable', 's2s_indexer.npy'), allow_pickle=True)
     timetable.s2s_data = np.load(os.path.join('optimized_timetable', 's2s_data.npy'), allow_pickle=True)
+    timetable.disruptions = np.load(os.path.join('optimized_timetable', 'disruptions.npy'), allow_pickle=True)
 
 
 def main(args):
     if args.cache & os.path.exists('optimized_timetable'):
         read_optimized_data()
+        determine_disruptions(args.excluded)
     else:
         read_timetable(args.input)
         optimize_timetable()
+        determine_disruptions(args.excluded)
         store_optimized_data()
 
-    ts = time.perf_counter()
-    traveltime, final_dest, stopbag = perform_lraptor(args.startpoint, args.endpoint, args.date, args.time, args.rounds)
-    logger.info('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
+    disrupt = len(timetable.disruptions) > 0
 
-    if SAVE_RESULTS:
-        export_results(traveltime, stopbag)
+    if args.full:
+        #
+        # Perform a full network scan
+        #
+        ts = time.perf_counter()
+        res_dict = {}
+        for st in timetable.stops.stop_name.unique():
+            logger.info('Calculating network from : {}'.format(st))
+            traveltime, final_dest, stopbag = perform_lraptor(st, args.endpoint, args.date, args.time,
+                                                              args.rounds, disrupt)
+            res_dict[st] = (traveltime, stopbag)
+        logger.info('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
 
-    journey = reconstruct_journey(final_dest, stopbag)
-    print_journey(journey, args.time)
-
-
-def full(args):
-    if args.cache & os.path.exists('optimized_timetable'):
-        read_optimized_data()
+        with open(os.path.join('results', 'res_{date:%Y%m%d_%H%M%S}_dict.pcl'.format(date=datetime.now())), 'wb') as f:
+            pickle.dump(res_dict, f, pickle.HIGHEST_PROTOCOL)
+        logger.info('Finished full network scan')
     else:
-        read_timetable(args.input)
-        optimize_timetable()
-        store_optimized_data()
+        #
+        # Find route between two stations
+        #
+        ts = time.perf_counter()
+        traveltime, final_dest, stopbag = perform_lraptor(args.startpoint, args.endpoint,
+                                                          args.date, args.time, args.rounds, disrupt)
+        logger.info('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
 
-    ts = time.perf_counter()
-    res_dict = {}
-    for st in timetable.stops.stop_name.unique():
-        logger.info('Calculating network from : {}'.format(st))
-        traveltime, final_dest, stopbag = perform_lraptor(st, args.endpoint, args.date, args.time, args.rounds)
-        res_dict[st] = (traveltime, stopbag)
-    logger.info('lRaptor Algorithm executed in {:.4f} seconds'.format(time.perf_counter() - ts))
+        if SAVE_RESULTS:
+            export_results(traveltime, stopbag)
 
-    with open(os.path.join('results', 'res_{date:%Y%m%d_%H%M%S}_dict.pcl'.format(date=datetime.now())), 'wb') as f:
-        pickle.dump(res_dict, f, pickle.HIGHEST_PROTOCOL)
-    logger.info('Finished full network scan')
+        journey = reconstruct_journey(final_dest, stopbag)
+        print_journey(journey, args.time)
 
 
 if __name__ == "__main__":
     # python -m cProfile -o out.prof lRaptor.py --i gtfs-extracted --s "Arnhem Zuid"
     #                                           --e "Oosterbeek" --d 20210223 --t "08:30:00" --r 2 --c True
+    #
     # snakeviz out.prof
+    #
     # main(Namespace(startpoint='Arnhem Zuid', endpoint='Oosterbeek', date='20210223' , time='08:30:00',
     #                cache=True, input='gtfs-extracted', rounds=2))
-    a = parse_arguments()
-    if a.full:
-        full(a)
-    else:
-        main(a)
+    #
+    # main(Namespace(startpoint='Arnhem Zuid', endpoint='Oosterbeek', date='20210223' , time='08:30:00',
+    #                cache=True, input='gtfs-extracted', rounds=2,  excluded='7625 6620'))
+    argms = parse_arguments()
+
+    main(argms)
