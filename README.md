@@ -36,7 +36,7 @@ Due to the filtering on trips checked in a previous round, the following scenari
 
 - Sprinter A - B
 - Intercity B - C
-- Sprinter B - D
+- Sprinter C - D
 
 when the sprinter lin from A to B also extends to D. E.g. Nijmegen Lent to Gilze-Rijen in the Netherlands.
 At this moment, these  journey advices are not given in practice so this filtering is kept.
