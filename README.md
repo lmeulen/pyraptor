@@ -271,3 +271,6 @@ A station with more than two next stops is a transfer station
 | --- | --- | --- |
 | index             |  int32 | Station ID
 | transfer_Station  |   bool  | True, if it is a transferstation 
+
+# References
+[Round-Based Public Transit Routing](https://www.microsoft.com/en-us/research/wp-content/uploads/2012/01/raptor_alenex.pdf)
