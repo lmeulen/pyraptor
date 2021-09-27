@@ -1,0 +1,5 @@
+[format]
+max-line-length = 140
+
+# Good variable names which should always be accepted, separated by a comma
+good-names=df,e,k
