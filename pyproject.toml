@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraptor"
-version = "0.0.0-dev"
+version = "0.0.1"
 description = "Journey planner with RAPTOR algorithm"
 authors = ["Leo van der Meulen, Thom Hopmans"]
 
@@ -20,3 +20,13 @@ black = {version = "^20.8b1", allow-prereleases = true}
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.semantic_release]
+version_variable = [
+    "pyraptor/__init__.py:__version__",
+    "pyproject.toml:version"
+]
+branch = "main"
+upload_to_pypi = false
+upload_to_release = false
+build_command = "pip install poetry && poetry build"
