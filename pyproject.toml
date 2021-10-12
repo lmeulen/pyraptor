@@ -26,7 +26,7 @@ version_variable = [
     "pyraptor/__init__.py:__version__",
     "pyproject.toml:version"
 ]
-branch = "main"
+branch = "master"
 upload_to_pypi = false
 upload_to_release = false
 build_command = "pip install poetry && poetry build"
