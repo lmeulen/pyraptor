@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraptor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Journey planner with RAPTOR algorithm"
 authors = ["Leo van der Meulen, Thom Hopmans"]
 
