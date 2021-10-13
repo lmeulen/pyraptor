@@ -26,4 +26,4 @@ Three applications:
 
 [Raptor, another journey planning algorithm](https://ljn.io/posts/raptor-journey-planning-algorithm), Linus Norton
 
-[Dutch GTFS feed](http://transitfeeds.com/p/ov/814?p=1), Transit Feeds
+[Dutch GTFS feed](http://transitfeeds.com/p/ov/814), Transit Feeds
