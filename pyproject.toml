@@ -3,6 +3,13 @@ name = "pyraptor"
 version = "0.2.0"
 description = "Journey planner with RAPTOR algorithm"
 authors = ["Leo van der Meulen, Thom Hopmans"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/lmeulen/pyraptor"
+repository = "https://github.com/lmeulen/pyraptor"
+include = [
+    "LICENSE",
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
