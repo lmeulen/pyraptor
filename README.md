@@ -8,6 +8,10 @@ Three applications:
 - `pyraptor/query.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
 - `pyraptor/range_query.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
 
+## Installation
+
+Install from PyPi using `pip install pyraptor` or clone this repository and install from source using pip.
+
 ## Example usage
 
 ### 1. Create timetable from GTFS
