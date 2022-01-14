@@ -100,8 +100,11 @@ def main(
         dep_secs,
         rounds,
     )
-    journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
-    print_journey(timetable, journey, dep_secs)
+
+    # Output journey
+    if final_dest != 0:
+        journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
+        print_journey(timetable, journey, dep_secs)
 
     logger.info(
         "RAPTOR Algorithm executed in {:.4f} seconds".format(perf_counter() - start)

@@ -16,7 +16,7 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 ### 1. Create timetable from GTFS
 
-`python pyraptor/gtfs/timetable.py -d "20210223" -a NS`
+`python pyraptor/gtfs/timetable.py -d "20211201" -a NS`
 
 ### 2. Run queries on timetable
 

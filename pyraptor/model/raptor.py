@@ -4,9 +4,8 @@ from typing import List, Tuple
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Trip, TripStopTime
+from pyraptor.model.datatypes import Stop, Trip
 from pyraptor.util import (
-    str2sec,
     sec2str,
     SAVE_RESULTS,
     T1H,
@@ -204,7 +203,14 @@ def reconstruct_journey(destination: Stop, bag):
         jrny.append((bag[current][2], bag[current][1], current))
         current = bag[current][2]
     jrny.reverse()
-    return jrny
+
+    # leg = (previous_stop.index, trip.id, to_stop.index)
+    reached_journey = []
+    for leg in jrny:
+        if leg[1] != 0:
+            reached_journey.append(leg)
+
+    return reached_journey
 
 
 def print_journey(timetable, journey, dep_secs=None):
