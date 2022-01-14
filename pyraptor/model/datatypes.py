@@ -20,7 +20,7 @@ class Stop:
     name = attr.ib(default=None)
     station = attr.ib(default=None)
     platform_code = attr.ib(default=None)
-    index = attr.ib(default=attr.Factory(lambda seq=iter(range(2 ** 40)): next(seq)))
+    index = attr.ib(default=None)
 
     def __hash__(self):
         return hash(self.id)
@@ -40,6 +40,7 @@ class Stops:
     def __init__(self):
         self.set_idx = dict()
         self.set_index = dict()
+        self.last_index = 1
 
     def __repr__(self):
         return f"Stops(n_stops={len(self.set_idx)})"
@@ -68,8 +69,10 @@ class Stops:
         if stop.id in self.set_idx:
             stop = self.set_idx[stop.id]
         else:
+            stop.index = self.last_index
             self.set_idx[stop.id] = stop
             self.set_index[stop.index] = stop
+            self.last_index += 1
         return stop
 
 
@@ -153,9 +156,7 @@ class TripStopTime:
         ).format(
             self,
             trip_id=self.trip.id if self.trip else None,
-            hint="{}:".format(self.trip.hint)
-            if self.trip and self.trip.hint
-            else "",
+            hint="{}:".format(self.trip.hint) if self.trip and self.trip.hint else "",
         )
 
 
@@ -218,7 +219,7 @@ class TripStopTimes:
 class Trip:
     """Trip"""
 
-    id = attr.ib(default=attr.Factory(lambda seq=iter(range(2 ** 40)): next(seq)))
+    id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
 
@@ -260,6 +261,7 @@ class Trips:
 
     def __init__(self):
         self.set_idx = dict()
+        self.last_id = 1
 
     def __repr__(self):
         return f"Trips(n_trips={len(self.set_idx)})"
@@ -275,4 +277,6 @@ class Trips:
 
     def add(self, trip):
         assert len(trip) >= 2, "must have 2 stop times"
+        trip.id = self.last_id
         self.set_idx[trip.id] = trip
+        self.last_id += 1

@@ -67,7 +67,7 @@ def main(
     mkdir_if_not_exists(output_folder)
 
     gtfs_timetable = read_gtfs_timetable(input_folder, departure_date, agencies)
-    timetable = optimize_timetable(gtfs_timetable)
+    timetable = gtfs_to_pyraptor_timetable(gtfs_timetable)
     write_timetable(output_folder, timetable)
 
 
@@ -76,7 +76,7 @@ def read_gtfs_timetable(
 ) -> GtfsTimetable:
     """Extract operators from GTFS data"""
 
-    logger.info("Reading GTFS data")
+    logger.info("Read GTFS data")
 
     # Read agencies
     logger.debug("Read Agencies")
@@ -149,7 +149,9 @@ def read_gtfs_timetable(
     stops_full = pd.read_csv(
         os.path.join(input_folder, "stops.txt"), dtype={"stop_id": str}
     )
-    stops = stops_full.loc[stops_full["stop_id"].isin(stop_times.stop_id.unique())].copy()
+    stops = stops_full.loc[
+        stops_full["stop_id"].isin(stop_times.stop_id.unique())
+    ].copy()
 
     # Read stopareas, i.e. stations
     stopareas = stops["parent_station"].unique()
@@ -184,11 +186,11 @@ def read_gtfs_timetable(
     return gtfs_timetable
 
 
-def optimize_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
+def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
     """
-    Optimize the timetable for usage in Raptor algorithm.
+    Convert timetable for usage in Raptor algorithm.
     """
-    logger.info("Optimize GTFS timetable for algorithm")
+    logger.info("Convert GTFS timetable to timetable for PyRaptor algorithm")
 
     # Stations and stops, i.e. platforms
     stations = Stations()
@@ -215,7 +217,7 @@ def optimize_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
 
     for trip_row in gtfs_timetable.trips.itertuples():
         trip = Trip()
-        trip.hint = trip_row.trip_short_name  # treinnummer
+        trip.hint = trip_row.trip_short_name  # i.e. treinnummer
 
         # Iterate over stops
         sort_stop_times = sorted(
