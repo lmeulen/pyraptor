@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.2 (2022-01-14)
+### Fix
+* Lock dependencies ([#15](https://github.com/lmeulen/pyraptor/issues/15)) ([`24c7a76`](https://github.com/lmeulen/pyraptor/commit/24c7a760cfef381234273619305992287f6bba29))
+
 ## v0.2.1 (2021-10-18)
 ### Fix
 * Add extra attributes to pyproject.toml for publishing on PyPi ([#13](https://github.com/lmeulen/pyraptor/issues/13)) ([`112c487`](https://github.com/lmeulen/pyraptor/commit/112c487da984f5eff57dacb0231a6eb654989da3))
