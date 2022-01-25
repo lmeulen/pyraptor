@@ -18,6 +18,9 @@ from pyraptor.util import (
 
 
 Leg = namedtuple("Leg", ["previous_stop_index", "trip_id", "to_stop_index"])
+LegDetails = namedtuple(
+    "LegDetails", ["leg_index", "from_stop", "to_stop", "trip", "dep", "arr"]
+)
 
 
 class RaptorAlgorithm:
@@ -275,7 +278,33 @@ def reconstruct_journey(destination: Stop, bag) -> List[Leg]:
     return reached_journey
 
 
-def print_journey(timetable: Timetable, journey: List[Leg], dep_secs=None):
+def add_journey_details(timetable: Timetable, journey: List[Leg]) -> List[LegDetails]:
+    """Add details to journey. More computational expensive so not done before."""
+
+    detailed = []
+
+    for index, leg in enumerate(journey):
+        # Get stop, trip and time information
+        from_stop = timetable.stops.get_by_index(leg.previous_stop_index)
+        to_stop = timetable.stops.get_by_index(leg.to_stop_index)
+        trip = timetable.trips.set_idx[leg.trip_id]
+        dep = [tst.dts_dep for tst in trip.stop_times if from_stop == tst.stop][0]
+        arr = [tst.dts_arr for tst in trip.stop_times if to_stop == tst.stop][0]
+
+        leg_details = LegDetails(
+            leg_index=index,
+            from_stop=from_stop,
+            to_stop=to_stop,
+            trip=trip,
+            dep=dep,
+            arr=arr,
+        )
+        detailed.append(leg_details)
+
+    return detailed
+
+
+def print_journey(timetable: Timetable, journey: List[LegDetails], dep_secs=None):
     """Print the given journey to logger info"""
     logger.info("Journey:")
 
@@ -286,46 +315,34 @@ def print_journey(timetable: Timetable, journey: List[Leg], dep_secs=None):
     # Print all legs in journey
     # leg = (previous_stop_index, trip_id, to_stop_index)
     for leg in journey:
-        if leg.trip_id != 0:
-            # Stop and trip
-            from_stop = timetable.stops.get_by_index(leg.previous_stop_index)
-            to_stop = timetable.stops.get_by_index(leg.to_stop_index)
-            trip = timetable.trips.set_idx[leg.trip_id]
-
-            dep = [tst.dts_dep for tst in trip.stop_times if from_stop == tst.stop][0]
-            arr = [tst.dts_arr for tst in trip.stop_times if to_stop == tst.stop][0]
-
-            msg = (
-                str(sec2str(dep))
-                + " "
-                + from_stop.station.name.ljust(20)
-                + "(p. "
-                + str(from_stop.platform_code).rjust(3)
-                + ") TO "
-                + str(sec2str(arr))
-                + " "
-                + to_stop.station.name.ljust(20)
-                + "(p. "
-                + str(to_stop.platform_code).rjust(3)
-                + ") WITH "
-                + str(trip.hint)
-            )
-            logger.info(msg)
+        # Stop and trip
+        msg = (
+            str(sec2str(leg.dep))
+            + " "
+            + leg.from_stop.station.name.ljust(20)
+            + "(p. "
+            + str(leg.from_stop.platform_code).rjust(3)
+            + ") TO "
+            + str(sec2str(leg.arr))
+            + " "
+            + leg.to_stop.station.name.ljust(20)
+            + "(p. "
+            + str(leg.to_stop.platform_code).rjust(3)
+            + ") WITH "
+            + str(leg.trip.hint)
+        )
+        logger.info(msg)
 
     # Departure time of first leg
-    depart_leg = journey[0] if journey[0].trip_id != 0 else journey[1]
-    depart_stop = timetable.stops.get_by_index(depart_leg.previous_stop_index)
-    depart_trip = timetable.trips.set_idx[depart_leg.trip_id]
-    depart_stop_time = [st for st in depart_trip.stop_times if st.stop == depart_stop][
-        0
-    ]
+    depart_leg = journey[0]
+    depart_stop_time = [
+        st for st in depart_leg.trip.stop_times if st.stop == depart_leg.from_stop
+    ][0]
 
     # Arrival time of last leg
     arrival_leg = journey[-1]
-    arrival_stop = timetable.stops.get_by_index(arrival_leg[2])
-    arrival_trip = timetable.trips.set_idx[arrival_leg[1]]
     arrival_stop_time = [
-        st for st in arrival_trip.stop_times if st.stop == arrival_stop
+        st for st in arrival_leg.trip.stop_times if st.stop == arrival_leg.to_stop
     ][0]
 
     msg = "Duration : {}".format(

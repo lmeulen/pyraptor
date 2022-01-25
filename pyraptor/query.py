@@ -9,6 +9,7 @@ from pyraptor.dao.results import write_results
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
     reconstruct_journey,
+    add_journey_details,
     final_destination,
     print_journey,
 )
@@ -101,7 +102,8 @@ def main(
     # Output journey
     if final_dest != 0:
         journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
-        print_journey(timetable, journey, dep_secs)
+        detailed_journey = add_journey_details(timetable, journey)
+        print_journey(timetable, detailed_journey, dep_secs)
 
     logger.info(
         "RAPTOR Algorithm executed in {:.4f} seconds".format(perf_counter() - start)
