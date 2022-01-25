@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.0 (2022-01-25)
+### Feature
+* Trigger release ([#18](https://github.com/lmeulen/pyraptor/issues/18)) ([`7f06d32`](https://github.com/lmeulen/pyraptor/commit/7f06d326b6a1903792742356a52bed9150a14ba5))
+
 ## v0.2.2 (2022-01-14)
 ### Fix
 * Lock dependencies ([#15](https://github.com/lmeulen/pyraptor/issues/15)) ([`24c7a76`](https://github.com/lmeulen/pyraptor/commit/24c7a760cfef381234273619305992287f6bba29))
