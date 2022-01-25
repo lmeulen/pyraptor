@@ -1,7 +1,7 @@
 from pyraptor import query
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.raptor import reconstruct_journey
+from pyraptor.model.raptor import reconstruct_journey, add_journey_details
 from pyraptor.query import perform_raptor, print_journey
 
 
@@ -26,6 +26,7 @@ def test_perform_raptor(timetable: Timetable):
     assert final_dest != 0, "destination should be reachable"
 
     journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
-    print_journey(timetable, journey, dep_secs)
+    detailed_journey = add_journey_details(timetable, journey)
+    print_journey(timetable, detailed_journey, dep_secs)
 
     assert len(journey) == 4, "should have 4 trips"
