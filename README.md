@@ -18,7 +18,7 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 `python pyraptor/gtfs/timetable.py -d "20211201" -a NS`
 
-### 2. Run queries on timetable
+### 2. Run (range) queries on timetable
 
 `python pyraptor/query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
 
