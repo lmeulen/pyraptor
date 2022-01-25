@@ -2,22 +2,19 @@
 import argparse
 from time import perf_counter
 
-import numpy as np
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable, read_timetable
 from pyraptor.dao.results import write_results
 from pyraptor.model.raptor import (
-    print_journey,
-    traverse_trips,
+    RaptorAlgorithm,
     reconstruct_journey,
     final_destination,
-    add_transfer_time,
+    print_journey,
 )
 from pyraptor.util import (
     str2sec,
     SAVE_RESULTS,
-    T24H,
 )
 
 
@@ -130,64 +127,16 @@ def perform_raptor(
     :param rounds: Number of iterations to perform
     """
 
-    start = perf_counter()
-
+    # Get stops for origins and destinations
     from_stops = timetable.stations.get(origin_station).stops
     to_stops = timetable.stations.get(destination_station).stops
 
-    # Initialize lookup with start node taking 0 seconds to reach
-    # Bag contains per stop (travel_time, trip_id, previous_stop), trip_id is 0 in case of a transfer
-    number_stops = len(timetable.stops) + 1
-    bag = np.full(
-        shape=(number_stops, 3),
-        fill_value=(T24H, 0, -1),
-        dtype=np.dtype(np.int32, np.int32, np.int32),
-    )
-
-    # Add origin stops to bag
-    logger.debug("Starting from Stop IDs: {}".format(str(from_stops)))
-
-    new_stops = []
-    for from_stop in from_stops:
-        bag[from_stop.index] = (0, 0, 0)
-        new_stops.append(from_stop)
-
     # Run Round-Based Algorithm
-    bag_k = {}
-    evaluations = []
-
-    for k in range(1, rounds + 1):
-
-        logger.info("Analyzing possibilities round {}".format(k))
-
-        # Get list of stops to evaluate in the process
-        logger.debug("Stops to evaluate count: {}".format(len(new_stops)))
-
-        # Update time to stops calculated based on stops reachable
-        t = perf_counter()
-        new_stops_travel, bag, evaluations = traverse_trips(
-            timetable, evaluations, k, new_stops, bag, dep_secs
-        )
-        logger.debug(
-            "Travel stops  calculated in {:0.4f} seconds".format(perf_counter() - t)
-        )
-        logger.debug("{} reachable stops added".format(len(new_stops_travel)))
-
-        # Now add footpath transfers and update
-        t = perf_counter()
-        new_stops_transfer, bag = add_transfer_time(new_stops_travel, bag)
-        logger.debug(
-            "Transfers calculated in {:0.4f} seconds".format(perf_counter() - t)
-        )
-        logger.debug("{} transferable stops added".format(len(new_stops_transfer)))
-
-        new_stops = set(new_stops_travel).union(new_stops_transfer)
-        logger.debug("{} stops to evaluate in next round".format(len(new_stops)))
-
-        # Store the results for this round
-        bag_k[k] = np.copy(bag)
+    raptor = RaptorAlgorithm(timetable)
+    bag_k, evaluations = raptor.run(from_stops, dep_secs, rounds)
 
     # Determine the best destination ID, destination is a platform
+    bag = bag_k[rounds]
     dest_stop = final_destination(to_stops, bag)
     if dest_stop != 0:
         logger.debug("Destination code   : {} ".format(dest_stop))
@@ -196,8 +145,6 @@ def perform_raptor(
         )
     else:
         logger.info("Destination unreachable with given parameters")
-
-    logger.debug("Performing RAPTOR took {} seconds", perf_counter() - start)
 
     return bag_k, dest_stop, evaluations
 
