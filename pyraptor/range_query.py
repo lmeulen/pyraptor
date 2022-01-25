@@ -1,5 +1,6 @@
 """Run range query on RAPTOR algorithm"""
 import argparse
+from typing import Dict
 from time import perf_counter
 
 from loguru import logger
@@ -9,6 +10,7 @@ from pyraptor.model.raptor import (
     RaptorAlgorithm,
     final_destination,
     reconstruct_journey,
+    add_journey_details,
     is_dominated,
     print_journey,
 )
@@ -144,7 +146,9 @@ def perform_recursive_raptor(
         )
     )
 
-    labels = {station_name: [] for station_name, _ in destination_stop_ids.items()}
+    journeys_to_destinations = {
+        station_name: [] for station_name, _ in destination_stop_ids.items()
+    }
     last_round_labels = {
         station_name: None for station_name, _ in destination_stop_ids.items()
     }
@@ -164,22 +168,25 @@ def perform_recursive_raptor(
             if dest_id != 0:
                 journey = reconstruct_journey(dest_id, bag)
                 last_round_journey = last_round_labels[destination_station_name]
-
                 last_round_labels[destination_station_name] = journey
 
                 if not is_dominated(timetable, last_round_journey, journey):
-                    labels[destination_station_name].append(journey)
+                    journeys_to_destinations[destination_station_name].append(journey)
 
-    return labels
+    return journeys_to_destinations
 
 
-def print_journeys(timetable: Timetable, labels, destination_station: str):
+def print_journeys(
+    timetable: Timetable,
+    journeys_to_destinations: Dict[str, list],
+    destination_station: str,
+):
     """Print journeys"""
-    logger.info("---")
+    logger.info("JOURNEYS")
     logger.info(f"Destination station {destination_station}")
-    for journey in labels[destination_station][::-1]:
-        print_journey(timetable, journey)
-        logger.info("---")
+    for journey in journeys_to_destinations[destination_station][::-1]:
+        detailed_journey = add_journey_details(timetable, journey)
+        print_journey(timetable, detailed_journey)
 
 
 if __name__ == "__main__":
