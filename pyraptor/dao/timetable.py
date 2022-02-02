@@ -7,16 +7,18 @@ from loguru import logger
 import joblib
 
 from pyraptor.util import mkdir_if_not_exists
+from pyraptor.model.datatypes import Stations, Stops, Trips, TripStopTimes, Routes
 
 
 @dataclass
 class Timetable:
     """Timetable data"""
 
-    stations = None
-    stops = None
-    trips = None
-    trip_stop_times = None
+    stations: Stations = None
+    stops: Stops = None
+    trips: Trips = None
+    trip_stop_times: TripStopTimes = None
+    routes: Routes = None
 
 
 def read_timetable(input_folder: str) -> Timetable:
@@ -42,6 +44,7 @@ def read_timetable(input_folder: str) -> Timetable:
     timetable.stops = load_joblib("stops")
     timetable.trips = load_joblib("trips")
     timetable.trip_stop_times = load_joblib("trip_stop_times")
+    timetable.routes = load_joblib("routes")
 
     return timetable
 
@@ -63,3 +66,4 @@ def write_timetable(output_folder: str, timetable: Timetable) -> None:
     write_joblib(timetable.stops, "stops")
     write_joblib(timetable.trips, "trips")
     write_joblib(timetable.trip_stop_times, "trip_stop_times")
+    write_joblib(timetable.routes, "routes")

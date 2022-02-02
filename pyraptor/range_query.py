@@ -1,7 +1,6 @@
 """Run range query on RAPTOR algorithm"""
 import argparse
 from typing import Dict
-from time import perf_counter
 
 from loguru import logger
 
@@ -97,8 +96,7 @@ def main(
 
     # Find route between two stations for time range, i.e. Range Query
     # traveltime, final_dest, stop_bag
-    start = perf_counter()
-    labels = perform_recursive_raptor(
+    labels = run_recursive_raptor(
         timetable,
         origin_station,
         dep_secs_min,
@@ -109,12 +107,8 @@ def main(
     # All destinations are present in labels, so this is only for logging purposes
     print_journeys(timetable, labels, destination_station=destination_station)
 
-    logger.info(
-        "RAPTOR Algorithm executed in {:.4f} seconds".format(perf_counter() - start)
-    )
 
-
-def perform_recursive_raptor(
+def run_recursive_raptor(
     timetable: Timetable,
     origin_station: str,
     dep_secs_min: int,
@@ -182,8 +176,7 @@ def print_journeys(
     destination_station: str,
 ):
     """Print journeys"""
-    logger.info("JOURNEYS")
-    logger.info(f"Destination station {destination_station}")
+    logger.info(f"Journeys to destination station '{destination_station}'")
     for journey in journeys_to_destinations[destination_station][::-1]:
         detailed_journey = add_journey_details(timetable, journey)
         print_journey(timetable, detailed_journey)

@@ -1,11 +1,6 @@
+"""Test Range Query"""
 from pyraptor import range_query
-
 from pyraptor.dao.timetable import Timetable
-from pyraptor.range_query import (
-    perform_recursive_raptor,
-    add_journey_details,
-    print_journeys,
-)
 
 
 def test_has_main():
@@ -19,14 +14,14 @@ def test_perform_recursive_raptor(timetable: Timetable):
     dep_secs_max = 60 * 60
     rounds = 4
 
-    journeys_to_destination = perform_recursive_raptor(
+    journeys_to_destination = range_query.run_recursive_raptor(
         timetable,
         origin_station,
         dep_secs_min,
         dep_secs_max,
         rounds,
     )
-    print_journeys(
+    range_query.print_journeys(
         timetable, journeys_to_destination, destination_station=destination_station
     )
 
@@ -36,4 +31,4 @@ def test_perform_recursive_raptor(timetable: Timetable):
     ), "should have 2 travel options"
 
     for journey in journeys_to_destination[destination_station][::-1]:
-        assert len(journey) == 4, "should use 4 trips from HT to ZW"
+        assert len(journey) == 2, "should use 2 trips from HT to ZW"

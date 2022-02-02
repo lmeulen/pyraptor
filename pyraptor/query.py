@@ -1,6 +1,5 @@
 """Run query with RAPTOR algorithm"""
 import argparse
-from time import perf_counter
 
 from loguru import logger
 
@@ -90,8 +89,7 @@ def main(
     logger.debug("Departure time (s.)  : " + str(dep_secs))
 
     # Find route between two stations
-    start = perf_counter()
-    bag_k, final_dest, evaluations = perform_raptor(
+    bag_k, final_dest, evaluations = run_raptor(
         timetable,
         origin_station,
         destination_station,
@@ -105,15 +103,11 @@ def main(
         detailed_journey = add_journey_details(timetable, journey)
         print_journey(timetable, detailed_journey, dep_secs)
 
-    logger.info(
-        "RAPTOR Algorithm executed in {:.4f} seconds".format(perf_counter() - start)
-    )
-
     if SAVE_RESULTS:
         write_results(output_folder, timetable, bag_k, evaluations)
 
 
-def perform_raptor(
+def run_raptor(
     timetable: Timetable,
     origin_station: str,
     destination_station: str,
@@ -123,6 +117,7 @@ def perform_raptor(
     """
     Perform the Raptor algorithm.
 
+    :param timetable: timetable
     :param origin_station: Name of origin station
     :param destination_station: Name of destation station
     :param dep_secs: Time of departure in seconds

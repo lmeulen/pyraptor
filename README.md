@@ -24,6 +24,10 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 `python pyraptor/range_query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
 
+# Notes
+
+- The current version doesn't implement target pruning as performance is sufficient already.
+
 # References
 
 [Round-Based Public Transit Routing](https://www.microsoft.com/en-us/research/wp-content/uploads/2012/01/raptor_alenex.pdf), Microsoft.com, Daniel Delling et al

@@ -61,7 +61,7 @@ class Stops:
         stop = self.set_idx[stop_id]
         return stop
 
-    def get_by_index(self, stop_index):
+    def get_by_index(self, stop_index) -> Stop:
         return self.set_index[stop_index]
 
     def add(self, stop):
@@ -145,6 +145,7 @@ class TripStopTime:
     stop = attr.ib(default=attr.NOTHING)
     dts_arr = attr.ib(default=attr.NOTHING)
     dts_dep = attr.ib(default=attr.NOTHING)
+    fare = attr.ib(default=0)
 
     def __hash__(self):
         return hash((self.trip, self.stopidx))
@@ -152,7 +153,7 @@ class TripStopTime:
     def __repr__(self):
         return (
             "TripStopTime(trip_id={hint}{trip_id}, stopidx={0.stopidx},"
-            " stop_id={0.stop.id}, dts_arr={0.dts_arr}, dts_dep={0.dts_dep})"
+            " stop_id={0.stop.id}, dts_arr={0.dts_arr}, dts_dep={0.dts_dep}, fare={0.fare})"
         ).format(
             self,
             trip_id=self.trip.id if self.trip else None,
@@ -247,12 +248,15 @@ class Trip:
     def __iter__(self):
         return iter(self.stop_times)
 
+    def trip_stop_ids(self):
+        return tuple([s.stop.id for s in self.stop_times])
+
     def add_stop_time(self, stop_time: TripStopTime):
         assert stop_time.dts_arr <= stop_time.dts_dep
         assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
         self.stop_times.append(stop_time)
 
-    def get_next_trip_stop_times(self, stop_idx: int):
+    def get_next_trip_stop_times(self, stop_idx: int) -> List[TripStopTime]:
         return [st for st in self.stop_times if st.stopidx > stop_idx]
 
 
@@ -280,3 +284,93 @@ class Trips:
         trip.id = self.last_id
         self.set_idx[trip.id] = trip
         self.last_id += 1
+
+
+@attr.s(repr=False, cmp=False)
+class Route:
+    """Route"""
+
+    id = attr.ib(default=None)
+    trips = attr.ib(default=attr.Factory(list))
+    stops = attr.ib(default=attr.Factory(list))
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, trip):
+        return same_type_and_id(self, trip)
+
+    def __repr__(self):
+        return "Route(id={0.id}, trips={trips})".format(
+            self,
+            trips=len(self.trips),
+        )
+
+    def __getitem__(self, n):
+        return self.trips[n]
+
+    def __len__(self):
+        return len(self.trips)
+
+    def __iter__(self):
+        return iter(self.trips)
+
+    def add_trip(self, trip: Trip) -> None:
+        self.trips.append(trip)
+    
+    def add_stop(self, stop: Stop) -> None:
+        self.stops.append(stop)
+        
+    def earliest_trip(self, dts: int, stop: Stop):
+        """Returns earliest trip after time dts (sec)"""
+        pass
+
+
+class Routes:
+    """Routes"""
+
+    def __init__(self):
+        self.set_idx = dict()
+        self.set_stops_idx = dict()  # {[]}
+        self.stop_to_routes = defaultdict(list)  # {stop: [routes]}
+        self.last_id = 1
+
+    def __repr__(self):
+        return f"Routes(n_routes={len(self.set_idx)})"
+
+    def __getitem__(self, route_id):
+        return self.set_idx[route_id]
+
+    def __len__(self):
+        return len(self.set_idx)
+
+    def __iter__(self):
+        return iter(self.set_idx.values())
+
+    def add(self, trip: Trip):
+        """Add trip to route. Make route if not exists."""
+        trip_stop_ids = trip.trip_stop_ids()
+
+        if trip_stop_ids in self.set_stops_idx:
+            # Route already exists
+            route = self.set_stops_idx[trip_stop_ids]
+        else:
+            # Route does not exist yet, make new route
+            route = Route()         
+            route.id = self.last_id
+
+            # Maintain a list of routes per stop
+            for trip_stop_time in trip:
+                self.stop_to_routes[trip_stop_time.stop].append(route)
+
+            # Efficient lookups
+            self.set_stops_idx[trip_stop_ids] = route
+            self.set_idx[route.id] = route
+            self.last_id += 1
+
+        # Add trip
+        route.add_trip(trip)
+        return route
+
+    def get_routes_of_stop(self, stop: Stop):
+        return self.stop_to_routes[stop]

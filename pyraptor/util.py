@@ -9,6 +9,7 @@ T3M = 3 * 60
 T1H = 1 * 60 * 60
 T6H = 6 * 60 * 60
 T24H = 24 * 60 * 60
+LARGE_NUMBER = 999999
 
 
 def mkdir_if_not_exists(name):

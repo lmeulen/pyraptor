@@ -19,6 +19,7 @@ from pyraptor.model.datatypes import (
     TripStopTimes,
     Station,
     Stations,
+    Routes,
 )
 
 
@@ -26,7 +27,6 @@ from pyraptor.model.datatypes import (
 class GtfsTimetable:
     """Gtfs Timetable data"""
 
-    routes = None
     trips = None
     calendar = None
     stop_times = None
@@ -171,18 +171,11 @@ def read_gtfs_timetable(
     # Filter out the general station codes
     stops = stops.loc[~stops.parent_station.isna()]
 
-    logger.debug("Counts:")
-    logger.debug("Routes     : {}", len(routes))
-    logger.debug("Trips      : {}", len(trips))
-    logger.debug("Stops      : {}", len(stops))
-    logger.debug("Stop Times : {}", len(stop_times))
-
     gtfs_timetable = GtfsTimetable()
-    gtfs_timetable.routes = routes
     gtfs_timetable.trips = trips
     gtfs_timetable.stop_times = stop_times
     gtfs_timetable.stops = stops
-
+   
     return gtfs_timetable
 
 
@@ -193,11 +186,12 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
     logger.info("Convert GTFS timetable to timetable for PyRaptor algorithm")
 
     # Stations and stops, i.e. platforms
+    logger.debug("Add stations and stops")
+
     stations = Stations()
     stops = Stops()
 
     for s in gtfs_timetable.stops.itertuples():
-        # TODO parent_station instead of name as id
         station = Station(s.stop_name, s.stop_name)
         station = stations.add(station)
 
@@ -212,6 +206,8 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
         stop_times[stop_time.trip_id].append(stop_time)
 
     # Trips and Trip Stop Times
+    logger.debug("Add trips and trip stop times")
+
     trips = Trips()
     trip_stop_times = TripStopTimes()
 
@@ -239,11 +235,26 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
         if trip:
             trips.add(trip)
 
+    # Routes
+    logger.debug("Add routes")
+    
+    routes = Routes()
+    for trip in trips:
+        routes.add(trip)
+
     timetable = Timetable()
     timetable.stations = stations
     timetable.stops = stops
     timetable.trips = trips
     timetable.trip_stop_times = trip_stop_times
+    timetable.routes = routes
+    
+    logger.debug("Counts:")
+    logger.debug("Stations   : {}", len(stations))
+    logger.debug("Routes     : {}", len(routes))
+    logger.debug("Trips      : {}", len(trips))
+    logger.debug("Stops      : {}", len(stops))
+    logger.debug("Stop Times : {}", len(trip_stop_times))
 
     return timetable
 

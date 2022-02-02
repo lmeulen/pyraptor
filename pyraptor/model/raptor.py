@@ -33,7 +33,7 @@ class RaptorAlgorithm:
         """Run Round-Based Algorithm"""
 
         # Initialize lookup with start node taking 0 seconds to reach
-        # Bag contains per stop (travel_time, trip_id, previous_stop), trip_id is 0 in case of a transfer
+        # Bag contains per stop (travel_time, trip_id, previous_stop_index), trip_id is 0 in case of a transfer
         number_stops = len(self.timetable.stops) + 1
         bag = np.full(
             shape=(number_stops, 3),
@@ -100,7 +100,7 @@ class RaptorAlgorithm:
         for start_stop in ids:
 
             # how long it took to get to the stop so far (0 for start node)
-            time_sofar = bag[start_stop.index][0]
+            time_sofar = bag[start_stop.index][0]  # travel time
 
             # get list of all trips associated with this stop
             trips = self.get_trip_ids_for_stop(start_stop, dep_secs + time_sofar, T1H)
@@ -121,7 +121,7 @@ class RaptorAlgorithm:
                     arrive_time_adjusted = arrive_stop_time.dts_arr - dep_secs
 
                     # only update if does not exist yet or is faster
-                    old_value = bag[arrive_stop_time.stop.index][0]
+                    old_value = bag[arrive_stop_time.stop.index][0]  # travel time
                     if arrive_time_adjusted < old_value:
                         n_improvements += 1
                         bag[arrive_stop_time.stop.index] = (
@@ -165,18 +165,20 @@ class RaptorAlgorithm:
 
         new_stops = []
 
-        # add in transfers to other platforms
+        # Add in transfers to other platforms
         for stop in stops:
 
             station = stop.station
             other_station_stops = [st for st in station.stops if st != stop]
 
-            time_sofar = bag[stop.index][0]
+            time_sofar = bag[stop.index][0]  # travel time
             for arrive_stop in other_station_stops:
                 arrive_time_adjusted = time_sofar + self.get_transfer_time(
                     stop, arrive_stop, time_sofar, 0
                 )
-                old_value = bag[arrive_stop.index][0]
+                old_value = bag[arrive_stop.index][0]  # travel time
+
+                # Domination criteria
                 if arrive_time_adjusted < old_value:
                     bag[arrive_stop.index] = (arrive_time_adjusted, 0, stop.index)
                     new_stops.append(arrive_stop)
