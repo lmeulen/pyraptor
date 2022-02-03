@@ -1,6 +1,6 @@
 """Datatypes"""
 from collections import defaultdict
-from typing import List
+from typing import List, Dict, Tuple
 
 import attr
 
@@ -165,8 +165,8 @@ class TripStopTimes:
     """Trip Stop Times"""
 
     def __init__(self):
-        self.set_idx = dict()
-        self.stop_trip_idx = defaultdict(list)
+        self.set_idx: Dict[Tuple[Trip, int], TripStopTime] = dict()
+        self.stop_trip_idx: Dict[Stop, List[TripStopTime]] = defaultdict(list)
 
     def __repr__(self):
         return f"Trips(n_trips={len(self.set_idx)})"
@@ -293,6 +293,7 @@ class Route:
     id = attr.ib(default=None)
     trips = attr.ib(default=attr.Factory(list))
     stops = attr.ib(default=attr.Factory(list))
+    stop_order = attr.ib(default=attr.Factory(dict))
 
     def __hash__(self):
         return hash(self.id)
@@ -317,10 +318,16 @@ class Route:
 
     def add_trip(self, trip: Trip) -> None:
         self.trips.append(trip)
-    
+
     def add_stop(self, stop: Stop) -> None:
         self.stops.append(stop)
-        
+
+        # (re)make dict to save the order of the stops in the route
+        self.stop_order = {stop: index for index, stop in enumerate(self.stops)}
+
+    def stop_index(self, stop: Stop):
+        return self.stop_order[stop]
+
     def earliest_trip(self, dts: int, stop: Stop):
         """Returns earliest trip after time dts (sec)"""
         pass
@@ -331,8 +338,8 @@ class Routes:
 
     def __init__(self):
         self.set_idx = dict()
-        self.set_stops_idx = dict()  # {[]}
-        self.stop_to_routes = defaultdict(list)  # {stop: [routes]}
+        self.set_stops_idx = dict()
+        self.stop_to_routes = defaultdict(list)  # {Stop: [Route]}
         self.last_id = 1
 
     def __repr__(self):
@@ -356,11 +363,12 @@ class Routes:
             route = self.set_stops_idx[trip_stop_ids]
         else:
             # Route does not exist yet, make new route
-            route = Route()         
+            route = Route()
             route.id = self.last_id
 
-            # Maintain a list of routes per stop
+            # Maintain stops in route and list of routes per stop
             for trip_stop_time in trip:
+                route.add_stop(trip_stop_time.stop)
                 self.stop_to_routes[trip_stop_time.stop].append(route)
 
             # Efficient lookups
