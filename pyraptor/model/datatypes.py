@@ -1,5 +1,8 @@
 """Datatypes"""
+from __future__ import annotations
+
 from collections import defaultdict
+from operator import attrgetter
 from typing import List, Dict, Tuple
 
 import attr
@@ -140,7 +143,7 @@ class Stations:
 class TripStopTime:
     """Trip Stop"""
 
-    trip = attr.ib(default=attr.NOTHING)
+    trip: Trip = attr.ib(default=attr.NOTHING)
     stopidx = attr.ib(default=attr.NOTHING)
     stop = attr.ib(default=attr.NOTHING)
     dts_arr = attr.ib(default=attr.NOTHING)
@@ -259,6 +262,10 @@ class Trip:
     def get_next_trip_stop_times(self, stop_idx: int) -> List[TripStopTime]:
         return [st for st in self.stop_times if st.stopidx > stop_idx]
 
+    def get_arrival_at_stop(self, stop: Stop) -> TripStopTime:
+        stop_times = [st for st in self.stop_times if st.stop == stop]
+        return stop_times[0] if len(stop_times) > 0 else None
+
 
 class Trips:
     """Trips"""
@@ -328,9 +335,13 @@ class Route:
     def stop_index(self, stop: Stop):
         return self.stop_order[stop]
 
-    def earliest_trip(self, dts: int, stop: Stop):
+    def earliest_trip(self, dts_arr: int, stop: Stop) -> Trip:
         """Returns earliest trip after time dts (sec)"""
-        pass
+        stop_idx = self.stop_index(stop)
+        trip_stop_times = [trip.stop_times[stop_idx] for trip in self.trips]
+        trip_stop_times = [tst for tst in trip_stop_times if tst.dts_arr >= dts_arr]
+        trip_stop_times = sorted(trip_stop_times, key=attrgetter("dts_arr"))
+        return trip_stop_times[0].trip if len(trip_stop_times) > 0 else None
 
 
 class Routes:

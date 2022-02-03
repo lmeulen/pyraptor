@@ -1,7 +1,7 @@
 """Test Query"""
 from pyraptor import query
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.raptor import reconstruct_journey, add_journey_details
+from pyraptor.model.raptor import reconstruct_journey
 
 
 def test_has_main():
@@ -9,12 +9,12 @@ def test_has_main():
 
 
 def test_run_raptor(timetable: Timetable):
-    origin_station = "HT"
-    destination_station = "ZW"
-    dep_secs = 60
+    origin_station = "A"
+    destination_station = "E"
+    dep_secs = 1860
     rounds = 3
 
-    bag_k, final_dest, _ = query.run_raptor(
+    best_labels, final_dest = query.run_raptor(
         timetable,
         origin_station,
         destination_station,
@@ -24,8 +24,7 @@ def test_run_raptor(timetable: Timetable):
 
     assert final_dest != 0, "destination should be reachable"
 
-    journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
-    detailed_journey = add_journey_details(timetable, journey)
-    query.print_journey(timetable, detailed_journey, dep_secs)
+    journey = reconstruct_journey(final_dest, best_labels)
+    query.print_journey(journey, dep_secs)
 
     assert len(journey) == 2, "should have 2 trips in journey"

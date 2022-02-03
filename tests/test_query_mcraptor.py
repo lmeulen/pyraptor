@@ -36,7 +36,7 @@ def test_is_pareto_efficient():
     # test for pareto set
     # labels = is_pareto_efficient(
     #             [
-    #                 Label(10, 5, 0, stop), 
+    #                 Label(10, 5, 0, stop),
     #                 Label(10, 10, 0, stop),
     #                 Label(5, 11, 0, stop),
     #                 Label(6, 6, 0, stop),

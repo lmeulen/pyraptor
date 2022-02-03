@@ -9,7 +9,6 @@ from pyraptor.model.raptor import (
     RaptorAlgorithm,
     final_destination,
     reconstruct_journey,
-    add_journey_details,
     is_dominated,
     print_journey,
 )
@@ -153,33 +152,31 @@ def run_recursive_raptor(
 
         # Run Round-Based Algorithm
         raptor = RaptorAlgorithm(timetable)
-        bag_k, _ = raptor.run(from_stops, dep_secs, rounds)
+        bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
 
         # Determine the best destination ID, destination is a platform
-        bag = bag_k[rounds]
+        best_labels = bag_round_stop[rounds]
         for destination_station_name, to_stops in destination_stop_ids.items():
-            dest_id = final_destination(to_stops, bag)
+            dest_id = final_destination(to_stops, best_labels)
             if dest_id != 0:
-                journey = reconstruct_journey(dest_id, bag)
+                journey = reconstruct_journey(dest_id, best_labels)
                 last_round_journey = last_round_labels[destination_station_name]
                 last_round_labels[destination_station_name] = journey
 
-                if not is_dominated(timetable, last_round_journey, journey):
+                if not is_dominated(last_round_journey, journey):
                     journeys_to_destinations[destination_station_name].append(journey)
 
     return journeys_to_destinations
 
 
 def print_journeys(
-    timetable: Timetable,
     journeys_to_destinations: Dict[str, list],
     destination_station: str,
 ):
     """Print journeys"""
     logger.info(f"Journeys to destination station '{destination_station}'")
     for journey in journeys_to_destinations[destination_station][::-1]:
-        detailed_journey = add_journey_details(timetable, journey)
-        print_journey(timetable, detailed_journey)
+        print_journey(journey)
 
 
 if __name__ == "__main__":

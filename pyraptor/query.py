@@ -8,14 +8,10 @@ from pyraptor.dao.results import write_results
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
     reconstruct_journey,
-    add_journey_details,
     final_destination,
     print_journey,
 )
-from pyraptor.util import (
-    str2sec,
-    SAVE_RESULTS,
-)
+from pyraptor.util import str2sec
 
 
 def parse_arguments():
@@ -89,7 +85,7 @@ def main(
     logger.debug("Departure time (s.)  : " + str(dep_secs))
 
     # Find route between two stations
-    bag_k, final_dest, evaluations = run_raptor(
+    best_labels, final_dest = run_raptor(
         timetable,
         origin_station,
         destination_station,
@@ -99,12 +95,8 @@ def main(
 
     # Output journey
     if final_dest != 0:
-        journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
-        detailed_journey = add_journey_details(timetable, journey)
-        print_journey(timetable, detailed_journey, dep_secs)
-
-    if SAVE_RESULTS:
-        write_results(output_folder, timetable, bag_k, evaluations)
+        journey = reconstruct_journey(final_dest, best_labels)
+        print_journey(journey, dep_secs)
 
 
 def run_raptor(
@@ -130,20 +122,23 @@ def run_raptor(
 
     # Run Round-Based Algorithm
     raptor = RaptorAlgorithm(timetable)
-    bag_k, evaluations = raptor.run(from_stops, dep_secs, rounds)
+    bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
 
     # Determine the best destination ID, destination is a platform
-    bag = bag_k[rounds]
-    dest_stop = final_destination(to_stops, bag)
+    best_labels = bag_round_stop[rounds]
+    dest_stop = final_destination(to_stops, best_labels)
+
     if dest_stop != 0:
         logger.debug("Destination code   : {} ".format(dest_stop))
         logger.info(
-            "Time to destination: {} minutes".format(bag[dest_stop.index][0] / 60)
+            "Time to destination: {:.2f} minutes".format(
+                best_labels[dest_stop].travel_time / 60
+            )
         )
     else:
         logger.info("Destination unreachable with given parameters")
 
-    return bag_k, dest_stop, evaluations
+    return best_labels, dest_stop
 
 
 if __name__ == "__main__":

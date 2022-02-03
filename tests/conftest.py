@@ -35,7 +35,7 @@ def get_data():
         return [
             [
                 trip_offset + 101,
-                "HT",
+                "A",
                 time_offset + 100,
                 time_offset + 100,
                 "14",
@@ -44,7 +44,7 @@ def get_data():
             ],
             [
                 trip_offset + 101,
-                "UT",
+                "B",
                 time_offset + 300,
                 time_offset + 320,
                 "6",
@@ -53,43 +53,54 @@ def get_data():
             ],
             [
                 trip_offset + 101,
-                "TB",
+                "C",
                 time_offset + 500,
                 time_offset + 520,
-                "4",
+                "1",
                 3,
                 0,
             ],
             [
                 trip_offset + 202,
-                "TB",
-                time_offset + 700,
-                time_offset + 700,
-                "4",
+                "C",
+                time_offset + 1000,
+                time_offset + 1020,
+                "2",
                 1,
                 0,
             ],
             [
                 trip_offset + 202,
-                "RTD",
-                time_offset + 900,
-                time_offset + 960,
-                "14A",
+                "D",
+                time_offset + 1200,
+                time_offset + 1200,
+                "4",
                 2,
                 0,
             ],
             [
                 trip_offset + 202,
-                "ZW",
-                time_offset + 1200,
-                time_offset + 1260,
-                "7",
+                "E",
+                time_offset + 1400,
+                time_offset + 1460,
+                "14",
                 3,
+                0,
+            ],
+            [
+                trip_offset + 202,
+                "F",
+                time_offset + 1800,
+                time_offset + 1860,
+                "7",
+                4,
                 0,
             ],
         ]
 
-    data = data_with_offset(trip_offset=0, time_offset=0) + data_with_offset(trip_offset=10, time_offset=1200)
+    data = data_with_offset(trip_offset=0, time_offset=0) + data_with_offset(
+        trip_offset=10, time_offset=3400
+    )
     df = pd.DataFrame(
         data,
         columns=[

@@ -1,26 +1,60 @@
 """RAPTOR algorithm"""
-from typing import List, Tuple
-from collections import namedtuple
+from __future__ import annotations
+from typing import List, Tuple, Dict
+from dataclasses import dataclass
+from copy import deepcopy
+from pprint import pprint
 
 from loguru import logger
-import numpy as np
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Trip
+from pyraptor.model.datatypes import Stop, Trip, Route
 from pyraptor.util import (
     sec2str,
-    SAVE_RESULTS,
-    T1H,
-    T6H,
     T24H,
+    TRANSFER_TRIP,
     TRANSFER_COST,
 )
 
 
-Leg = namedtuple("Leg", ["previous_stop_index", "trip_id", "to_stop_index"])
-LegDetails = namedtuple(
-    "LegDetails", ["leg_index", "from_stop", "to_stop", "trip", "dep", "arr"]
-)
+@dataclass
+class Label:
+    travel_time: int = T24H
+    trip: Trip = None  # trip to take to obtain travel_time
+    from_stop: Stop = None  # stop at which we hop-on trip with trip
+
+    def update(self, travel_time=None, trip=None, from_stop=None):
+        if travel_time is not None:
+            self.travel_time = travel_time
+        if trip is not None:
+            self.trip = trip
+        if travel_time is not None:
+            self.from_stop = from_stop
+
+    def is_dominating(self, other: Label):
+        return self.travel_time <= other.travel_time
+
+    def __repr__(self) -> str:
+        return f"Label(travel_time={self.travel_time}, trip={self.trip}, from_stop={self.from_stop})"
+
+
+@dataclass
+class Leg:
+    from_stop: Stop
+    to_stop: Stop
+    trip: Trip
+
+    @property
+    def dep(self):
+        return [
+            tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
+        ][0]
+
+    @property
+    def arr(self):
+        return [
+            tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
+        ][0]
 
 
 class RaptorAlgorithm:
@@ -29,161 +63,184 @@ class RaptorAlgorithm:
     def __init__(self, timetable: Timetable):
         self.timetable = timetable
 
-    def run(self, from_stops, dep_secs, rounds):
+    def run(self, from_stops, dep_secs, rounds) -> Dict[int, Dict[Stop, Label]]:
         """Run Round-Based Algorithm"""
 
+        # Initialize empty bag of labels, i.e. B_k(p) = Label() for every k and p
+        bag_round_stop: Dict[int, Dict[Stop, Label]] = {}
+        for k in range(0, rounds + 1):
+            bag_round_stop[k] = {}
+            for p in self.timetable.stops:
+                bag_round_stop[k][p] = Label()
+
         # Initialize lookup with start node taking 0 seconds to reach
-        # Bag contains per stop (travel_time, trip_id, previous_stop_index), trip_id is 0 in case of a transfer
-        number_stops = len(self.timetable.stops) + 1
-        bag = np.full(
-            shape=(number_stops, 3),
-            fill_value=(T24H, 0, -1),
-            dtype=np.dtype(np.int32, np.int32, np.int32),
-        )
-
-        # Add origin stops to bag
         logger.debug("Starting from Stop IDs: {}".format(str(from_stops)))
-
-        new_stops = []
+        marked_stops = []
         for from_stop in from_stops:
-            bag[from_stop.index] = (0, 0, 0)
-            new_stops.append(from_stop)
+            bag_round_stop[0][from_stop].update(dep_secs, None, None)
+            marked_stops.append(from_stop)
 
         # Run rounds
-        bag_k = {}
-        evaluations = []
-
         for k in range(1, rounds + 1):
-
             logger.info("Analyzing possibilities round {}".format(k))
+            bag_round_stop[k] = deepcopy(bag_round_stop[k - 1])
 
             # Get list of stops to evaluate in the process
-            logger.debug("Stops to evaluate count: {}".format(len(new_stops)))
+            logger.debug("Stops to evaluate count: {}".format(len(marked_stops)))
+
+            # Get marked route stops
+            route_marked_stops = self.accumulate_marked_routes(marked_stops)
 
             # Update time to stops calculated based on stops reachable
-            new_stops_travel, bag, evaluations = self.traverse_trips(
-                evaluations, k, new_stops, bag, dep_secs
+            bag_round_stop, marked_stops_trips = self.traverse_routes(
+                bag_round_stop, k, route_marked_stops, dep_secs
             )
-            logger.debug("{} reachable stops added".format(len(new_stops_travel)))
+            logger.debug("{} reachable stops added".format(len(marked_stops_trips)))
 
-            # Now add footpath transfers and update
-            new_stops_transfer, bag = self.add_transfer_time(new_stops_travel, bag)
-            logger.debug("{} transferable stops added".format(len(new_stops_transfer)))
+            pprint(bag_round_stop)
 
-            new_stops = set(new_stops_travel).union(new_stops_transfer)
-            logger.debug("{} stops to evaluate in next round".format(len(new_stops)))
+            # Add footpath transfers and update
+            bag_round_stop, marked_stops_transfers = self.add_transfer_time(
+                bag_round_stop, k, marked_stops_trips
+            )
+            logger.debug(
+                "{} transferable stops added".format(len(marked_stops_transfers))
+            )
 
-            # Store the results for this round
-            bag_k[k] = np.copy(bag)
+            pprint(bag_round_stop)
 
-        return bag_k, evaluations
+            marked_stops = set(marked_stops_trips).union(marked_stops_transfers)
+            logger.debug("{} stops to evaluate in next round".format(len(marked_stops)))
 
-    def traverse_trips(
-        self, evaluations: List, k: int, ids: List, bag, dep_secs: int
+        return bag_round_stop
+
+    def accumulate_marked_routes(self, marked_stops):
+        """Get marked route-stops, i.e. Q"""
+
+        # Accumulate routes serving marked stops from previous round
+        route_marked_stops = {}  # i.e. Q
+
+        for marked_stop in marked_stops:
+            routes_serving_stop = self.timetable.routes.get_routes_of_stop(marked_stop)
+            for route in routes_serving_stop:
+                # Check if new_stop is before existing stop in Q
+                current_stop_for_route = route_marked_stops.get(route, None)  # i.e. p'
+                if (current_stop_for_route is None) or (
+                    route.stop_index(current_stop_for_route)
+                    > route.stop_index(marked_stop)
+                ):
+                    route_marked_stops[route] = marked_stop
+        route_marked_stops = [(r, p) for r, p in route_marked_stops.items()]
+
+        return route_marked_stops
+
+    def traverse_routes(
+        self,
+        bag_round_stop: Dict[int, Dict[Stop, Label]],
+        k: int,
+        route_marked_stops: List[Tuple[Route, Stop]],
+        dep_secs: int,
     ) -> Tuple:
         """
         Iterator through the stops reachable and add all new reachable stops
         by following all trips from the reached stations. Trips are only followed
         in the direction of travel and beyond already added points.
 
+        :param bag_round_stop: Bag per round per stop
         :param k: current round
-        :param ids: current stops reached
-        :param bag: numpy array with info over reached stops
+        :param route_marked_stops: list of marked (route, stop) for evaluation
         :param dep_secs: Departure time in seconds
         """
+
+        bag_star = deepcopy(bag_round_stop[k])
 
         new_stops = []
 
         n_evaluations = 0
         n_improvements = 0
 
-        for start_stop in ids:
+        for (marked_route, marked_stop) in route_marked_stops:
 
-            # how long it took to get to the stop so far (0 for start node)
-            time_sofar = bag[start_stop.index][0]  # travel time
+            logger.debug(f"Route {marked_route}, Stop {marked_stop}")
 
-            # get list of all trips associated with this stop
-            trips = self.get_trip_ids_for_stop(start_stop, dep_secs + time_sofar, T1H)
+            # Current trip for this stop
+            current_trip = bag_round_stop[k][marked_stop].trip
 
-            for (trip, current_stopidx) in trips:
+            # How long it took to get to the stop so far
+            marked_label = bag_round_stop[k][marked_stop]
+            time_sofar = marked_label.travel_time
 
-                # get all following stop times for this trip
-                stop_times = trip.get_next_trip_stop_times(current_stopidx)
+            # Iterate over all stops after current stop within the current route
+            current_stop_index = marked_route.stop_index(marked_stop)
+            remaining_stops_in_route = marked_route.stops[current_stop_index:]
+            for next_stop in remaining_stops_in_route:
+                n_evaluations += 1
 
-                # for all following stops, calculate time to reach
-                for arrive_stop_time in stop_times:
-                    n_evaluations += 1
+                previous_arrival_time = bag_round_stop[k - 1][next_stop].travel_time
 
-                    if SAVE_RESULTS:
-                        evaluations.append((k, start_stop, trip, arrive_stop_time))
+                if current_trip is not None:
+                    # Time to reach is diff from start time to arrival
+                    arrival_stop_time = current_trip.get_arrival_at_stop(next_stop)
+                    if arrival_stop_time is not None:
+                        new_arrival_time = arrival_stop_time.dts_arr - dep_secs
 
-                    # time to reach is diff from start time to arrival (plus any baseline cost)
-                    arrive_time_adjusted = arrive_stop_time.dts_arr - dep_secs
+                        if new_arrival_time < previous_arrival_time:
+                            # Update arrival by trip
+                            bag_round_stop[k][next_stop].update(
+                                new_arrival_time, current_trip, marked_stop
+                            )
+                            n_improvements += 1
+                            new_stops.append(next_stop)
 
-                    # only update if does not exist yet or is faster
-                    old_value = bag[arrive_stop_time.stop.index][0]  # travel time
-                    if arrive_time_adjusted < old_value:
-                        n_improvements += 1
-                        bag[arrive_stop_time.stop.index] = (
-                            arrive_time_adjusted,
-                            trip.id,
-                            start_stop.index,
-                        )
-                        new_stops.append(arrive_stop_time.stop)
+                # Possibility to find a new / earlier trip
+                if current_trip is None or new_arrival_time < previous_arrival_time:
+                    earliest_trip = marked_route.earliest_trip(time_sofar, next_stop)
+                    if earliest_trip is not None and current_trip != earliest_trip:
+                        current_trip = earliest_trip
 
         logger.debug("- Evaluations    : {}".format(n_evaluations))
         logger.debug("- Improvements   : {}".format(n_improvements))
 
-        return new_stops, bag, evaluations
+        return bag_round_stop, new_stops
 
-    def get_trip_ids_for_stop(
+    def add_transfer_time(
         self,
-        stop_id: Stop,
-        dep_secs: int,
-        forward: int = T6H,
-    ) -> List[Tuple[Trip, int]]:
+        bag_round_stop: Dict[int, Dict[Stop, Label]],
+        k: int,
+        marked_stops: List[Stop],
+    ) -> Tuple:
         """
-        Takes a stop and departure time and get associated trip ids.
-        The forward parameter limits the time frame starting at the departure time.
-        Default framesize is 60 minutes.
-        Times are specified in seconds since midnight.
+        Add transfers between platforms.
 
-        :param stop_id: Stop
-        :param dep_secs: Departure time
-        :param forward: Period forward limiting trips
+        :param bag_round_stop: Label per round per stop
+        :param k: current round
+        :param marked_stops: list of marked stops for evaluation
         """
-        trip_stop_times = self.timetable.trip_stop_times.get_trip_stop_times_for_stop(
-            stop_id, dep_secs, forward
-        )
-        trips = list(set([(tst.trip, tst.stopidx) for tst in trip_stop_times]))
-        return trips
-
-    def add_transfer_time(self, stops: List[Stop], bag) -> Tuple:
-        """Add transfers between platforms."""
-
-        # TODO Implement transfer station boolean
 
         new_stops = []
 
         # Add in transfers to other platforms
-        for stop in stops:
+        for stop in marked_stops:
 
-            station = stop.station
-            other_station_stops = [st for st in station.stops if st != stop]
+            other_station_stops = [st for st in stop.station.stops if st != stop]
 
-            time_sofar = bag[stop.index][0]  # travel time
+            time_sofar = bag_round_stop[k][stop].travel_time
             for arrive_stop in other_station_stops:
                 arrive_time_adjusted = time_sofar + self.get_transfer_time(
                     stop, arrive_stop, time_sofar, 0
                 )
-                old_value = bag[arrive_stop.index][0]  # travel time
+                previous_arrival_value = bag_round_stop[k][arrive_stop].travel_time
 
                 # Domination criteria
-                if arrive_time_adjusted < old_value:
-                    bag[arrive_stop.index] = (arrive_time_adjusted, 0, stop.index)
+                if arrive_time_adjusted < previous_arrival_value:
+                    bag_round_stop[k][arrive_stop].update(
+                        arrive_time_adjusted,
+                        TRANSFER_TRIP,
+                        stop,
+                    )
                     new_stops.append(arrive_stop)
 
-        return new_stops, bag
+        return bag_round_stop, new_stops
 
     def get_transfer_time(
         self, stop_from: int, stop_to: int, time_sec: int, dow: int
@@ -198,115 +255,44 @@ class RaptorAlgorithm:
         return TRANSFER_COST
 
 
-def is_dominated(
-    timetable: Timetable, original_journey: List[Leg], new_journey: List[Leg]
-) -> bool:
-    """Check if new journey is dominated by another journey"""
-    # First journey
-    if not original_journey:
-        return False
-
-    # No improvement
-    if original_journey == new_journey:
-        return True
-
-    def depart(jrny: List[Leg]) -> int:
-        depart_leg = jrny[0] if jrny[0].trip_id != 0 else jrny[1]
-        depart_stop = timetable.stops.get_by_index(depart_leg.previous_stop_index)
-        depart_trip = timetable.trips.set_idx[depart_leg.trip_id]
-        depart_stop_time = [
-            st for st in depart_trip.stop_times if st.stop == depart_stop
-        ][0]
-        return depart_stop_time.dts_dep
-
-    def arrival(jrny: List[Leg]) -> int:
-        arrival_leg = jrny[-1]
-        arrival_stop = timetable.stops.get_by_index(arrival_leg.to_stop_index)
-        arrival_trip = timetable.trips.set_idx[arrival_leg.trip_id]
-        arrival_stop_time = [
-            st for st in arrival_trip.stop_times if st.stop == arrival_stop
-        ][0]
-        return arrival_stop_time.dts_arr
-
-    original_depart = depart(original_journey)
-    new_depart = depart(new_journey)
-
-    original_arrival = arrival(original_journey)
-    new_arrival = arrival(new_journey)
-
-    # Is dominated
-    return (
-        True
-        if original_depart > new_depart and original_arrival < new_arrival
-        else False
-    )
-
-
-def final_destination(to_stops: List[Stop], bag) -> Stop:
+def final_destination(to_stops: List[Stop], bag: Dict[Stop, Label]) -> Stop:
     """
-    Find the destination ID with the shortest distance.
+    Find the destination Stop with the shortest distance.
     Required in order to prevent adding travel time to the arrival time.
     """
     final_stop = 0
     distance = T24H
     for stop in to_stops:
-        if bag[stop.index][0] < distance:
-            distance = bag[stop.index][0]
+        if bag[stop].travel_time < distance:
+            distance = bag[stop].travel_time
             final_stop = stop
     return final_stop
 
 
-def reconstruct_journey(destination: Stop, bag) -> List[Leg]:
+def reconstruct_journey(destination: Stop, bag: Dict[Stop, Label]) -> List[Leg]:
     """Construct journey for destination from values in bag."""
 
     # Create journey with list of legs
     jrny = []
-    current = destination.index
-    while current != 0:
-        # bag = (travel_time, trip_id, previous_stop.index)
-        previous_stop_index = bag[current][2]
-        trip_id = bag[current][1]
-        leg = Leg(previous_stop_index, trip_id, current)
+    current = destination
+    while current is not None:
+        from_stop = bag[current].from_stop
+        trip = bag[current].trip
+        leg = Leg(from_stop, current, trip)
         jrny.append(leg)
-        current = previous_stop_index
+        current = from_stop
     jrny.reverse()
 
-    # Filter legs
+    # Filter transfer legs
     reached_journey = []
     for leg in jrny:
-        if leg.trip_id != 0:
+        if leg.trip is not None:
             reached_journey.append(leg)
 
     return reached_journey
 
 
-def add_journey_details(timetable: Timetable, journey: List[Leg]) -> List[LegDetails]:
-    """Add details to journey. More computational expensive so not done before."""
-
-    detailed = []
-
-    for index, leg in enumerate(journey):
-        # Get stop, trip and time information
-        from_stop = timetable.stops.get_by_index(leg.previous_stop_index)
-        to_stop = timetable.stops.get_by_index(leg.to_stop_index)
-        trip = timetable.trips.set_idx[leg.trip_id]
-        dep = [tst.dts_dep for tst in trip.stop_times if from_stop == tst.stop][0]
-        arr = [tst.dts_arr for tst in trip.stop_times if to_stop == tst.stop][0]
-
-        leg_details = LegDetails(
-            leg_index=index,
-            from_stop=from_stop,
-            to_stop=to_stop,
-            trip=trip,
-            dep=dep,
-            arr=arr,
-        )
-        detailed.append(leg_details)
-
-    return detailed
-
-
-def print_journey(timetable: Timetable, journey: List[LegDetails], dep_secs=None):
+def print_journey(journey: List[Leg], dep_secs=None):
     """Print the given journey to logger info"""
     logger.info("Journey:")
 
@@ -315,7 +301,6 @@ def print_journey(timetable: Timetable, journey: List[LegDetails], dep_secs=None
         return
 
     # Print all legs in journey
-    # leg = (previous_stop_index, trip_id, to_stop_index)
     for leg in journey:
         # Stop and trip
         msg = (
@@ -335,24 +320,45 @@ def print_journey(timetable: Timetable, journey: List[LegDetails], dep_secs=None
         )
         logger.info(msg)
 
-    # Departure time of first leg
-    depart_leg = journey[0]
-    depart_stop_time = [
-        st for st in depart_leg.trip.stop_times if st.stop == depart_leg.from_stop
-    ][0]
+    # Departure time of first leg and arrival time of last leg
+    depart_stop_time = journey[0].dep
+    arrival_stop_time = journey[-1].arr
 
-    # Arrival time of last leg
-    arrival_leg = journey[-1]
-    arrival_stop_time = [
-        st for st in arrival_leg.trip.stop_times if st.stop == arrival_leg.to_stop
-    ][0]
-
-    msg = "Duration : {}".format(
-        sec2str(arrival_stop_time.dts_arr - depart_stop_time.dts_dep)
-    )
+    msg = "Duration : {}".format(sec2str(arrival_stop_time - depart_stop_time))
     if dep_secs:
         msg += " ({} from request time {})".format(
-            sec2str(arrival_stop_time.dts_arr - dep_secs),
+            sec2str(arrival_stop_time - dep_secs),
             sec2str(dep_secs),
         )
     logger.info(msg)
+
+
+def is_dominated(original_journey: List[Leg], new_journey: List[Leg]) -> bool:
+    """Check if new journey is dominated by another journey"""
+    # First journey
+    if not original_journey:
+        return False
+
+    # No improvement
+    if original_journey == new_journey:
+        return True
+
+    def depart(jrny: List[Leg]) -> int:
+        depart_leg = jrny[0] if jrny[0].trip is not None else jrny[1]
+        return depart_leg.dep
+
+    def arrival(jrny: List[Leg]) -> int:
+        return jrny[-1].arr
+
+    original_depart = depart(original_journey)
+    new_depart = depart(new_journey)
+
+    original_arrival = arrival(original_journey)
+    new_arrival = arrival(new_journey)
+
+    # Is dominated
+    return (
+        True
+        if original_depart > new_depart and original_arrival < new_arrival
+        else False
+    )

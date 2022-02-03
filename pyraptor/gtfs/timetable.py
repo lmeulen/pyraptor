@@ -175,7 +175,7 @@ def read_gtfs_timetable(
     gtfs_timetable.trips = trips
     gtfs_timetable.stop_times = stop_times
     gtfs_timetable.stops = stops
-   
+
     return gtfs_timetable
 
 
@@ -237,7 +237,7 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
 
     # Routes
     logger.debug("Add routes")
-    
+
     routes = Routes()
     for trip in trips:
         routes.add(trip)
@@ -248,7 +248,7 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
     timetable.trips = trips
     timetable.trip_stop_times = trip_stop_times
     timetable.routes = routes
-    
+
     logger.debug("Counts:")
     logger.debug("Stations   : {}", len(stations))
     logger.debug("Routes     : {}", len(routes))
