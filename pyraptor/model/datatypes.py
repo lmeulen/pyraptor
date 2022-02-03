@@ -262,7 +262,7 @@ class Trip:
     def get_next_trip_stop_times(self, stop_idx: int) -> List[TripStopTime]:
         return [st for st in self.stop_times if st.stopidx > stop_idx]
 
-    def get_arrival_at_stop(self, stop: Stop) -> TripStopTime:
+    def get_stop(self, stop: Stop) -> TripStopTime:
         stop_times = [st for st in self.stop_times if st.stop == stop]
         return stop_times[0] if len(stop_times) > 0 else None
 

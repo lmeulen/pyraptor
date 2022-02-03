@@ -180,10 +180,9 @@ class RaptorAlgorithm:
 
                 if current_trip is not None:
                     # Time to reach is diff from start time to arrival
-                    arrival_stop_time = current_trip.get_arrival_at_stop(next_stop)
+                    arrival_stop_time = current_trip.get_stop(next_stop)
                     if arrival_stop_time is not None:
-                        new_arrival_time = arrival_stop_time.dts_arr - dep_secs
-
+                        new_arrival_time = arrival_stop_time.dts_arr # - dep_secs  # TODO: Something goes wrong here I think
                         if new_arrival_time < previous_arrival_time:
                             # Update arrival by trip
                             bag_round_stop[k][next_stop].update(
@@ -193,7 +192,11 @@ class RaptorAlgorithm:
                             new_stops.append(next_stop)
 
                 # Possibility to find a new / earlier trip
-                if current_trip is None or new_arrival_time < previous_arrival_time:
+                # TODO: Inefficient double look-up
+                if current_trip is None or (
+                    current_trip.get_stop(next_stop) is not None
+                    and previous_arrival_time < current_trip.get_stop(next_stop).dts_dep
+                ):
                     earliest_trip = marked_route.earliest_trip(time_sofar, next_stop)
                     if earliest_trip is not None and current_trip != earliest_trip:
                         current_trip = earliest_trip

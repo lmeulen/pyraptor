@@ -11,8 +11,8 @@ def test_has_main():
 def test_run_raptor(timetable: Timetable):
     origin_station = "A"
     destination_station = "E"
-    dep_secs = 1860
-    rounds = 3
+    dep_secs = 180
+    rounds = 2
 
     best_labels, final_dest = query.run_raptor(
         timetable,
