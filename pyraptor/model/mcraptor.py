@@ -88,7 +88,7 @@ class Bag:
 
     def merge(self, bag: Bag) -> None:
         self.labels.extend(bag.labels)
-        self.labels = is_pareto_efficient(self.labels)
+        self.labels = pareto_set_labels(self.labels)
 
 
 class McRaptorAlgorithm:
