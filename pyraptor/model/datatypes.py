@@ -226,6 +226,7 @@ class Trip:
     id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
+    fare = attr.ib(default=None)
 
     def __hash__(self):
         return hash(self.id)
@@ -234,12 +235,13 @@ class Trip:
         return same_type_and_id(self, trip)
 
     def __repr__(self):
-        return "Trip(id={hint}:{0.id}, stop_times={stop_times}:{first_stop}-{last_stop})".format(
+        return "Trip(id={hint}:{0.id}, stop_times={stop_times}:{first_stop}-{last_stop}, fare={fare})".format(
             self,
             stop_times=len(self.stop_times),
             first_stop=self.stop_times[0].stop.id,
             last_stop=self.stop_times[-1].stop.id,
             hint=self.hint,
+            fare=self.fare,
         )
 
     def __getitem__(self, n):

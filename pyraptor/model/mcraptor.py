@@ -1,5 +1,6 @@
 """McRAPTOR algorithm"""
 from __future__ import annotations
+from pdb import set_trace
 from typing import List, Tuple, Dict
 from collections import namedtuple
 from pprint import pprint
@@ -44,7 +45,7 @@ def pareto_set_labels(labels: List[Label]):
 
 @dataclass
 class Label:
-    travel_time: int
+    travel_time: int  # should this be arrival_time or travel time??
     fare: int
     trip_id: int  # trip_id of trip to take to obtain travel_time and fare
     from_stop: Stop  # stop at which we hop-on trip with trip_id
@@ -59,17 +60,17 @@ class Label:
         if fare:
             self.fare = fare
 
-    def __lt__(self, other: Label):
-        return self.travel_time < other.travel_time and self.fare < other.fare
+    # def __lt__(self, other: Label):
+    #     return self.travel_time < other.travel_time and self.fare < other.fare
 
-    def __gt__(self, other: Label):
-        return self.travel_time > other.travel_time and self.fare > other.fare
+    # def __gt__(self, other: Label):
+    #     return self.travel_time > other.travel_time and self.fare > other.fare
 
-    def __le__(self, other: Label):
-        return self.travel_time <= other.travel_time and self.fare <= other.fare
+    # def __le__(self, other: Label):
+    #     return self.travel_time <= other.travel_time and self.fare <= other.fare
 
-    def __ge__(self, other: Label):
-        return self.travel_time >= other.travel_time and self.fare >= other.fare
+    # def __ge__(self, other: Label):
+    #     return self.travel_time >= other.travel_time and self.fare >= other.fare
 
 
 @dataclass
@@ -89,6 +90,9 @@ class Bag:
     def merge(self, bag: Bag) -> None:
         self.labels.extend(bag.labels)
         self.labels = pareto_set_labels(self.labels)
+
+    def earliest_arrival(self) -> int:
+        return min([self.labels[i].travel_time for i in range(len(self))])
 
 
 class McRaptorAlgorithm:
@@ -146,11 +150,12 @@ class McRaptorAlgorithm:
             route_marked_stops = [(r, p) for r, p in route_marked_stops.items()]
 
             # Traverse each route
-            bag_round_stop, new_marked_stops = self.traverse_trips(
+            bag_round_stop, new_marked_stops = self.traverse_route(
                 deepcopy(bag_round_stop), k, route_marked_stops, dep_secs
             )
 
             pprint(bag_round_stop)
+            set_trace()
 
             # logger.debug("{} reachable stops added".format(len(new_stops_travel)))
 
@@ -166,7 +171,7 @@ class McRaptorAlgorithm:
 
         return bag_round_stop
 
-    def traverse_trips(
+    def traverse_route(
         self,
         bag_round_stop: Dict[int, Dict[int, Bag]],
         k: int,
@@ -202,17 +207,27 @@ class McRaptorAlgorithm:
             # Lege route bag aanmaken
             route_bag = Bag()
 
+            # bepaal earliest trip? om label mee te updaten?
+            earliest_arrival_marked_stop = bag_round_stop[k - 1][
+                marked_stop
+            ].earliest_arrival()  # plus transfer buffer?
+            earliest_trip = marked_route.earliest_trip(
+                earliest_arrival_marked_stop, marked_stop
+            )
+
             for next_stop_index, current_stop in enumerate(remaining_stops_in_route):
                 # step 1: update arrival times and other criteria of every label L from Br
                 for label in route_bag.labels:
-                    trip = self.timetable.trips[label.trip_id]
+                    trip = self.timetable.trips[
+                        label.trip_id
+                    ]  # waarom op dezelfde trip door?
                     trip_stop_idx = current_stop_index + next_stop_index
                     trip_stop_time = self.timetable.trip_stop_times.set_idx[
                         (trip, trip_stop_idx)
-                    ]
+                    ]  # key error?
                     label.update(
                         travel_time=trip_stop_time.dts_arr, fare=trip_stop_time.fare
-                    )
+                    )  # kan hier trip ook al bij?
 
                 # step 2: merge bag_route into bag_round_stop and remove dominated labels
                 bag_round_stop[k][current_stop].merge(route_bag)
@@ -222,7 +237,7 @@ class McRaptorAlgorithm:
 
                 # assign trips to all newly added labels
                 for label in route_bag.labels:
-                    pass
+                    label.trip_id = earliest_trip.id  # dubbel werk?
 
         logger.debug("- Evaluations    : {}".format(n_evaluations))
         logger.debug("- Improvements   : {}".format(n_improvements))
