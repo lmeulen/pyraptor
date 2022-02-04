@@ -1,10 +1,13 @@
 """Test Query McRaptor"""
 from pyraptor import query_mcraptor
 from pyraptor.dao.timetable import Timetable
+from pyraptor.model.datatypes import Stop
 from pyraptor.model.mcraptor import (
     reconstruct_journeys,
     add_journey_details,
     print_journeys,
+    pareto_set_labels,
+    Label,
 )
 
 
@@ -32,22 +35,29 @@ def test_run_raptor(timetable_with_fares: Timetable):
     # assert len(journeys) == 2, "should have 2 journeys"
 
 
-def test_is_pareto_efficient():
-    # test for pareto set
-    # labels = is_pareto_efficient(
-    #             [
-    #                 Label(10, 5, 0, stop),
-    #                 Label(10, 10, 0, stop),
-    #                 Label(5, 11, 0, stop),
-    #                 Label(6, 6, 0, stop),
-    #                 Label(11, 12, 0, stop),
-    #                 Label(7, 5, 0, stop)
-    #             ]
-    #         )
-    # expected = [
-    #     Label(5, 11, 0, stop),
-    #     Label(6, 6, 0, stop),
-    #     Label(7, 5, 0, stop)
-    # ]
+def test_pareto_set_labels():
+    """
+    test for creating pareto set
+    """
 
-    return True
+    stop = Stop(1, 1, "UT", "13")
+
+    l1 = Label(1, 6, 0, stop)
+    l2 = Label(3, 4, 0, stop)
+    l3 = Label(5, 1, 0, stop)
+    l4 = Label(3, 5, 0, stop)
+    l5 = Label(5, 3, 0, stop)
+    l6 = Label(6, 1, 0, stop)
+    labels = pareto_set_labels(
+        [
+            l1,
+            l2,
+            l3,
+            l4,
+            l5,
+            l6,
+        ]
+    )
+    expected = [l1, l2, l3]
+
+    assert labels == expected

@@ -22,23 +22,24 @@ LegDetails = namedtuple(
 )
 
 
-def is_pareto_efficient(labels: List[Label]):
+def pareto_set_labels(labels: List[Label]):
     """
     Find the pareto-efficient points
-    :param labels: An (n_points, n_costs) array
-    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    :param labels: list with labels
+    :return: list with pairwise non-dominating labels
     """
 
-    label_costs = np.array([(l.travel_time, l.fare) for l in labels])
-
-    is_efficient = np.ones(label_costs.shape[0], dtype=bool)
-    for i, c in enumerate(label_costs):
+    is_efficient = np.ones(len(labels), dtype=bool)
+    labels_criteria = np.array([label.criteria for label in labels])
+    for i, label in enumerate(labels_criteria):
         if is_efficient[i]:
             # Keep any point with a lower cost
-            is_efficient[is_efficient] = np.any(label_costs[is_efficient] < c, axis=1)
+            is_efficient[is_efficient] = np.any(
+                labels_criteria[is_efficient] < label, axis=1
+            )
             is_efficient[i] = True  # And keep self
 
-    return [labels[i] for i in range(len(labels)) if is_efficient[i]]
+    return [labels for i, labels in enumerate(labels) if is_efficient[i]]
 
 
 @dataclass
@@ -48,21 +49,27 @@ class Label:
     trip_id: int  # trip_id of trip to take to obtain travel_time and fare
     from_stop: Stop  # stop at which we hop-on trip with trip_id
 
+    @property
+    def criteria(self):
+        return [self.travel_time, self.fare]
+
     def update(self, travel_time=None, fare=None):
         if travel_time:
             self.travel_time = travel_time
         if fare:
             self.fare = fare
 
-    def is_dominating(self, other: Label):
-        return (
-            True
-            if self.travel_time <= other.travel_time and self.fare <= other.fare
-            else False
-        )
+    def __lt__(self, other: Label):
+        return self.travel_time < other.travel_time and self.fare < other.fare
 
-    def __repr__(self) -> str:
-        return f"Label(travel_time={self.travel_time}, fare={self.fare}, trip={self.trip_id}, from_stop={self.from_stop})"
+    def __gt__(self, other: Label):
+        return self.travel_time > other.travel_time and self.fare > other.fare
+
+    def __le__(self, other: Label):
+        return self.travel_time <= other.travel_time and self.fare <= other.fare
+
+    def __ge__(self, other: Label):
+        return self.travel_time >= other.travel_time and self.fare >= other.fare
 
 
 @dataclass
