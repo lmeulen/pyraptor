@@ -33,22 +33,14 @@ def get_data():
 
     def data_with_offset(trip_offset, time_offset):
         return [
+            # First trip
             [
                 trip_offset + 101,
                 "A",
                 time_offset + 100,
                 time_offset + 100,
-                "14",
+                "0",
                 1,
-                0,
-            ],
-            [
-                trip_offset + 101,
-                "B",
-                time_offset + 300,
-                time_offset + 300,
-                "6",
-                2,
                 0,
             ],
             [
@@ -57,9 +49,10 @@ def get_data():
                 time_offset + 600,
                 time_offset + 600,
                 "1",
-                3,
+                2,
                 0,
             ],
+            # Second trip
             [
                 trip_offset + 202,
                 "C",
@@ -71,35 +64,73 @@ def get_data():
             ],
             [
                 trip_offset + 202,
-                "D",
+                "F",
+                time_offset + 1500,
+                time_offset + 1500,
+                "0",
+                2,
+                0,
+            ],
+            # Third trip
+            [
+                trip_offset + 303,
+                "C",
+                time_offset + 900,
+                time_offset + 900,
+                "2",
+                1,
+                0,
+            ],
+            [
+                trip_offset + 303,
+                "X",
                 time_offset + 1200,
                 time_offset + 1200,
-                "4",
+                "0",
                 2,
                 0,
             ],
             [
-                trip_offset + 202,
-                "E",
-                time_offset + 1460,
-                time_offset + 1460,
-                "14",
-                3,
-                0,
-            ],
-            [
-                trip_offset + 202,
+                trip_offset + 303,
                 "F",
                 time_offset + 1800,
                 time_offset + 1800,
-                "7",
-                4,
+                "0",
+                2,
                 0,
             ],
+            # Crossing route
+            # [
+            #     trip_offset + 404,
+            #     "B",
+            #     time_offset + 300,
+            #     time_offset + 300,
+            #     "0",
+            #     1,
+            #     0,
+            # ],
+            # [
+            #     trip_offset + 404,
+            #     "C",
+            #     time_offset + 800,
+            #     time_offset + 800,
+            #     "3",
+            #     2,
+            #     0,
+            # ],
+            # [
+            #     trip_offset + 404,
+            #     "F",
+            #     time_offset + 1900,
+            #     time_offset + 1900,
+            #     "0",
+            #     3,
+            #     0,
+            # ],
         ]
 
     data = data_with_offset(trip_offset=0, time_offset=0) + data_with_offset(
-        trip_offset=10, time_offset=3340
+        trip_offset=10, time_offset=3600
     )
     df = pd.DataFrame(
         data,

@@ -176,6 +176,8 @@ def read_gtfs_timetable(
     gtfs_timetable.stop_times = stop_times
     gtfs_timetable.stops = stops
 
+    # import pdb; pdb.set_trace()
+
     return gtfs_timetable
 
 
@@ -191,11 +193,14 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
     stations = Stations()
     stops = Stops()
 
+    gtfs_timetable.stops.platform_code = gtfs_timetable.stops.platform_code.fillna("?")
+
     for s in gtfs_timetable.stops.itertuples():
         station = Station(s.stop_name, s.stop_name)
         station = stations.add(station)
 
-        stop = Stop(s.stop_id, s.stop_id, station, s.platform_code)
+        stop_id = f"{s.stop_name}-{s.platform_code}"
+        stop = Stop(s.stop_id, stop_id, station, s.platform_code)
 
         station.add_stop(stop)
         stops.add(stop)
