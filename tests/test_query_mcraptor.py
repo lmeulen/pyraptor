@@ -1,11 +1,12 @@
 """Test Query McRaptor"""
 import datetime
+from pprint import pprint
 
 import pandas as pd
 import numpy as np
 
 from pyraptor import query_mcraptor
-from pyraptor.model.mcraptor import reconstruct_journeys
+from pyraptor.model.mcraptor import reconstruct_journeys, print_journeys
 from tests.utils import to_timetable
 
 
@@ -149,8 +150,8 @@ def test_run_mcraptor_toy2():
         departure_time,
         rounds,
     )
+    pprint(bag_round_stop)
     journeys = reconstruct_journeys(destination_legs, bag_round_stop, k=rounds)
-    print(bag_round_stop)
-    print(journeys)
+    print_journeys(journeys, departure_time)
 
     assert True

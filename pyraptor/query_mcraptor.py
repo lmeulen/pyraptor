@@ -52,7 +52,7 @@ def parse_arguments():
         "-r",
         "--rounds",
         type=int,
-        default=1,
+        default=3,
         help="Number of rounds to execute the RAPTOR algorithm",
     )
     arguments = parser.parse_args()
@@ -78,7 +78,7 @@ def main(
 
     timetable = read_timetable(input_folder)
 
-    logger.info("Calculating network from : {}".format(origin_station))
+    logger.info(f"Calculating network from : {origin_station}")
 
     # Departure time seconds
     dep_secs = str2sec(departure_time)
