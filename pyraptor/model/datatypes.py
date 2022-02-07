@@ -4,8 +4,10 @@ from __future__ import annotations
 from collections import defaultdict
 from operator import attrgetter
 from typing import List, Dict, Tuple
+from dataclasses import dataclass, field
 
 import attr
+import numpy as np
 
 from pyraptor.util import T6H
 
@@ -395,3 +397,96 @@ class Routes:
 
     def get_routes_of_stop(self, stop: Stop):
         return self.stop_to_routes[stop]
+
+
+@dataclass
+class Leg:
+    from_stop: Stop
+    to_stop: Stop
+    trip: Trip
+    earliest_arrival_time: int
+    fare: int
+
+    @property
+    def dep(self):
+        return [
+            tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
+        ][0]
+
+    @property
+    def arr(self):
+        return [
+            tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
+        ][0]
+
+
+def pareto_set_labels(labels: List[Label]):
+    """
+    Find the pareto-efficient points
+    :param labels: list with labels
+    :return: list with pairwise non-dominating labels
+    """
+
+    is_efficient = np.ones(len(labels), dtype=bool)
+    labels_criteria = np.array([label.criteria for label in labels])
+    for i, label in enumerate(labels_criteria):
+        if is_efficient[i]:
+            # Keep any point with a lower cost
+            is_efficient[is_efficient] = np.any(
+                labels_criteria[is_efficient] < label, axis=1
+            )
+            is_efficient[i] = True  # And keep self
+
+    return [labels for i, labels in enumerate(labels) if is_efficient[i]]
+
+
+@dataclass
+class Label:
+    travel_time: int  # earliest arrival trime
+    fare: int
+    trip_id: int  # trip_id of trip to take to obtain travel_time and fare
+    from_stop: Stop  # stop at which we hop-on trip with trip_id
+
+    @property
+    def criteria(self):
+        return [self.travel_time, self.fare]
+
+    def update(self, travel_time=None, fare=None):
+        if travel_time:
+            self.travel_time = travel_time
+        if fare:
+            self.fare = fare
+
+    # def __lt__(self, other: Label):
+    #     return self.travel_time < other.travel_time and self.fare < other.fare
+
+    # def __gt__(self, other: Label):
+    #     return self.travel_time > other.travel_time and self.fare > other.fare
+
+    # def __le__(self, other: Label):
+    #     return self.travel_time <= other.travel_time and self.fare <= other.fare
+
+    # def __ge__(self, other: Label):
+    #     return self.travel_time >= other.travel_time and self.fare >= other.fare
+
+
+@dataclass
+class Bag:
+    """
+    Bag B(k,p) or route bag B_r
+    """
+
+    labels: List[Label] = field(default_factory=list)
+
+    def __len__(self):
+        return len(self.labels)
+
+    def add(self, label: Label):
+        self.labels.append(label)
+
+    def merge(self, bag: Bag) -> None:
+        self.labels.extend(bag.labels)
+        self.labels = pareto_set_labels(self.labels)
+
+    def earliest_arrival(self) -> int:
+        return min([self.labels[i].travel_time for i in range(len(self))])

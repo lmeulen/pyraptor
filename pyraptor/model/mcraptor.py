@@ -1,98 +1,16 @@
 """McRAPTOR algorithm"""
-from __future__ import annotations
-from pdb import set_trace
 from typing import List, Tuple, Dict
-from collections import namedtuple
 from pprint import pprint
-from copy import copy, deepcopy
+from copy import deepcopy
 
-from dataclasses import dataclass, field
 from loguru import logger
-import numpy as np
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Trip, Routes, Route
+from pyraptor.model.datatypes import Stop, Route, Bag, Label, Leg
 from pyraptor.util import (
     sec2str,
     TRANSFER_COST,
 )
-
-Leg = namedtuple("Leg", ["from_stop", "trip_id", "to_stop", "travel_time", "fare"])
-LegDetails = namedtuple(
-    "LegDetails", ["leg_index", "from_stop", "to_stop", "trip", "dep", "arr"]
-)
-
-
-def pareto_set_labels(labels: List[Label]):
-    """
-    Find the pareto-efficient points
-    :param labels: list with labels
-    :return: list with pairwise non-dominating labels
-    """
-
-    is_efficient = np.ones(len(labels), dtype=bool)
-    labels_criteria = np.array([label.criteria for label in labels])
-    for i, label in enumerate(labels_criteria):
-        if is_efficient[i]:
-            # Keep any point with a lower cost
-            is_efficient[is_efficient] = np.any(
-                labels_criteria[is_efficient] < label, axis=1
-            )
-            is_efficient[i] = True  # And keep self
-
-    return [labels for i, labels in enumerate(labels) if is_efficient[i]]
-
-
-@dataclass
-class Label:
-    travel_time: int  # should this be arrival_time or travel time??
-    fare: int
-    trip_id: int  # trip_id of trip to take to obtain travel_time and fare
-    from_stop: Stop  # stop at which we hop-on trip with trip_id
-
-    @property
-    def criteria(self):
-        return [self.travel_time, self.fare]
-
-    def update(self, travel_time=None, fare=None):
-        if travel_time:
-            self.travel_time = travel_time
-        if fare:
-            self.fare = fare
-
-    # def __lt__(self, other: Label):
-    #     return self.travel_time < other.travel_time and self.fare < other.fare
-
-    # def __gt__(self, other: Label):
-    #     return self.travel_time > other.travel_time and self.fare > other.fare
-
-    # def __le__(self, other: Label):
-    #     return self.travel_time <= other.travel_time and self.fare <= other.fare
-
-    # def __ge__(self, other: Label):
-    #     return self.travel_time >= other.travel_time and self.fare >= other.fare
-
-
-@dataclass
-class Bag:
-    """
-    Bag B(k,p) or route bag B_r
-    """
-
-    labels: List[Label] = field(default_factory=list)
-
-    def __len__(self):
-        return len(self.labels)
-
-    def add(self, label: Label):
-        self.labels.append(label)
-
-    def merge(self, bag: Bag) -> None:
-        self.labels.extend(bag.labels)
-        self.labels = pareto_set_labels(self.labels)
-
-    def earliest_arrival(self) -> int:
-        return min([self.labels[i].travel_time for i in range(len(self))])
 
 
 class McRaptorAlgorithm:
@@ -134,30 +52,16 @@ class McRaptorAlgorithm:
             logger.debug("Stops to evaluate count: {}".format(len(marked_stops)))
 
             # Accumulate routes serving marked stops from previous round
-            route_marked_stops = {}  # i.e. Q
-            for marked_stop in marked_stops:
-                routes_serving_stop = self.timetable.routes.get_routes_of_stop(
-                    marked_stop
-                )
-                for route in routes_serving_stop:
-                    # Check if new_stop is before existing stop in Q
-                    current_stop_for_route = route_marked_stops.get(route, None)  # p'
-                    if (current_stop_for_route is None) or (
-                        route.stop_index(current_stop_for_route)
-                        > route.stop_index(marked_stop)
-                    ):
-                        route_marked_stops[route] = marked_stop
-            route_marked_stops = [(r, p) for r, p in route_marked_stops.items()]
+            route_marked_stops = self.acculumate_routes(marked_stops)
 
             # Traverse each route
-            bag_round_stop, new_marked_stops = self.traverse_route(
+            bag_round_stop, marked_stops_trips = self.traverse_route(
                 deepcopy(bag_round_stop), k, route_marked_stops, dep_secs
             )
 
             pprint(bag_round_stop)
-            set_trace()
 
-            # logger.debug("{} reachable stops added".format(len(new_stops_travel)))
+            logger.debug("{} reachable stops added".format(len(marked_stops_trips)))
 
             # Now add footpath transfers and update
             # bag_round_stop = self.add_transfer_time(deepcopy(bag_round_stop), k)
@@ -166,10 +70,27 @@ class McRaptorAlgorithm:
 
             # logger.debug("{} transferable stops added".format(len(new_stops_transfer)))
 
-            # new_stops = set(new_stops_travel).union(new_stops_transfer)
-            # logger.debug("{} stops to evaluate in next round".format(len(new_stops)))
+            marked_stops = set(marked_stops_trips)  # .union(new_stops_transfer)
+            logger.debug("{} stops to evaluate in next round".format(len(marked_stops)))
 
         return bag_round_stop
+
+    def acculumate_routes(self, marked_stops) -> List[Tuple[Route, Stop]]:
+        """Accumulate routes serving marked stops from previous round"""
+        route_marked_stops = {}  # i.e. Q
+        for marked_stop in marked_stops:
+            routes_serving_stop = self.timetable.routes.get_routes_of_stop(marked_stop)
+            for route in routes_serving_stop:
+                # Check if new_stop is before existing stop in Q
+                current_stop_for_route = route_marked_stops.get(route, None)  # p'
+                if (current_stop_for_route is None) or (
+                    route.stop_index(current_stop_for_route)
+                    > route.stop_index(marked_stop)
+                ):
+                    route_marked_stops[route] = marked_stop
+        route_marked_stops = [(r, p) for r, p in route_marked_stops.items()]
+
+        return route_marked_stops
 
     def traverse_route(
         self,
@@ -309,15 +230,15 @@ def reconstruct_journeys(
 
             # Loop trough each new leg
             for new_label in best_bag[current_stop.index]:
+                # trip = timetable.trips.set_idx[leg.trip_id]
                 new_leg = Leg(
                     new_label.previous_stop,
-                    new_label.trip_id,
                     current_stop,
+                    new_label.trip_id,  # TODO: Trip
                     new_label.travel_time,
                     new_label.fare,
                 )
                 new_jrny = [jrny + [new_leg]]
-                # print("new_jrny", new_jrny)
                 for i in loop(best_bag, new_jrny):
                     yield i
 
@@ -329,43 +250,13 @@ def reconstruct_journeys(
     return journeys
 
 
-def add_journey_details(
-    timetable: Timetable, journeys: List[List[Leg]]
-) -> List[List[LegDetails]]:
-    """Add details to journey. More computational expensive so not done before."""
-
-    detailed_journeys = []
-    for journey in journeys:
-        detailed = []
-        for index, leg in enumerate(journey):
-            # Get stop, trip and time information
-            from_stop = leg.previous_stop
-            to_stop = leg.to_stop
-            trip = timetable.trips.set_idx[leg.trip_id]
-            dep = [tst.dts_dep for tst in trip.stop_times if from_stop == tst.stop][0]
-            arr = [tst.dts_arr for tst in trip.stop_times if to_stop == tst.stop][0]
-
-            leg_details = LegDetails(
-                leg_index=index,
-                from_stop=from_stop,
-                to_stop=to_stop,
-                trip=trip,
-                dep=dep,
-                arr=arr,
-            )
-            detailed.append(leg_details)
-
-        detailed_journeys.append(detailed)
-    return detailed_journeys
-
-
-def print_journeys(journeys: List[List[LegDetails]], dep_secs=None):
+def print_journeys(journeys: List[List[Leg]], dep_secs=None):
     """Print list of journeys"""
     for jrny in journeys:
         print_journey(jrny, dep_secs)
 
 
-def print_journey(journey: List[LegDetails], dep_secs=None):
+def print_journey(journey: List[Leg], dep_secs=None):
     """Print the given journey to logger info"""
     logger.info("Journey:")
 
