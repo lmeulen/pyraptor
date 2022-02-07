@@ -208,12 +208,7 @@ class McRaptorAlgorithm:
             route_bag = Bag()
 
             # bepaal earliest trip? om label mee te updaten?
-            earliest_arrival_marked_stop = bag_round_stop[k - 1][
-                marked_stop
-            ].earliest_arrival()  # plus transfer buffer?
-            earliest_trip = marked_route.earliest_trip(
-                earliest_arrival_marked_stop, marked_stop
-            )
+            earliest_trip = None
 
             for next_stop_index, current_stop in enumerate(remaining_stops_in_route):
                 # step 1: update arrival times and other criteria of every label L from Br
@@ -237,6 +232,13 @@ class McRaptorAlgorithm:
 
                 # assign trips to all newly added labels
                 for label in route_bag.labels:
+                    earliest_arrival_marked_stop = bag_round_stop[k - 1][
+                        marked_stop
+                    ].earliest_arrival()  # plus transfer buffer?
+                    earliest_trip = marked_route.earliest_trip(
+                        earliest_arrival_marked_stop, marked_stop
+                    )
+
                     label.trip_id = earliest_trip.id  # dubbel werk?
 
         logger.debug("- Evaluations    : {}".format(n_evaluations))
