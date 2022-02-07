@@ -238,18 +238,17 @@ def reconstruct_journeys(
         """Create journeys as list of Legs"""
         for jrny in all_journeys:
             current_leg = jrny[-1]
-            current_stop = current_leg.from_stop
 
             # End of journey
-            if current_leg.trip is not None:
+            if current_leg.trip is None:
                 yield jrny
                 break
 
             # Loop trough each new leg
-            for new_label in last_round_bags[current_stop].labels:
+            for new_label in last_round_bags[current_leg.from_stop].labels:
                 new_leg = Leg(
                     new_label.from_stop,
-                    current_stop,
+                    current_leg.from_stop,
                     new_label.trip,
                     new_label.earliest_arrival_time,
                     new_label.fare,
@@ -257,8 +256,6 @@ def reconstruct_journeys(
                 new_jrny = [jrny + [new_leg]]
                 for i in loop(last_round_bags, new_jrny):
                     yield i
-
-    import pdb; pdb.set_trace()
 
     last_round_bags = bag_round_stop[k]
     journeys = [[l] for l in destination_legs]
