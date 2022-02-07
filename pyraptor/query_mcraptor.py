@@ -8,7 +8,6 @@ from pyraptor.dao.timetable import Timetable, read_timetable
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     reconstruct_journeys,
-    add_journey_details,
     final_destination,
     print_journey,
 )
@@ -96,9 +95,8 @@ def main(
 
     # Output journey
     if final_dest != 0:
-        journey = reconstruct_journeys(final_dest, bag=bag_k[rounds])
-        detailed_journey = add_journey_details(timetable, journey)
-        print_journey(timetable, detailed_journey, dep_secs)
+        journey = reconstruct_journeys(final_dest, best_bag=bag_k[rounds])
+        print_journey(journey, dep_secs)
 
 
 def run_mcraptor(

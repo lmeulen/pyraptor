@@ -2,6 +2,7 @@
 from typing import List, Tuple, Dict
 from pprint import pprint
 from copy import deepcopy
+from pdb import set_trace
 
 from loguru import logger
 
@@ -10,6 +11,7 @@ from pyraptor.model.datatypes import Stop, Route, Bag, Label, Leg
 from pyraptor.util import (
     sec2str,
     TRANSFER_COST,
+    TRANSFER_TRIP,
 )
 
 
@@ -39,24 +41,24 @@ class McRaptorAlgorithm:
 
         # Initialize bag for round 0, i.e. add Labels with criterion 0 for all from stops
         for from_stop in from_stops:
-            bag_round_stop[0][from_stop].add(Label(0, 0, 0, from_stop))
+            bag_round_stop[0][from_stop].add(Label(dep_secs, 0, TRANSFER_TRIP, from_stop))
 
         marked_stops = from_stops
 
         # Run rounds
         for k in range(1, rounds + 1):
 
-            logger.info("Analyzing possibilities round {}".format(k))
+            logger.info(f"Analyzing possibilities round {k}")
 
             # Get list of stops to evaluate in the process
             logger.debug("Stops to evaluate count: {}".format(len(marked_stops)))
 
             # Accumulate routes serving marked stops from previous round
-            route_marked_stops = self.acculumate_routes(marked_stops)
+            route_marked_stops = self.accumulate_routes(marked_stops)
 
             # Traverse each route
             bag_round_stop, marked_stops_trips = self.traverse_route(
-                deepcopy(bag_round_stop), k, route_marked_stops, dep_secs
+                deepcopy(bag_round_stop), k, route_marked_stops
             )
 
             pprint(bag_round_stop)
@@ -75,7 +77,7 @@ class McRaptorAlgorithm:
 
         return bag_round_stop
 
-    def acculumate_routes(self, marked_stops) -> List[Tuple[Route, Stop]]:
+    def accumulate_routes(self, marked_stops) -> List[Tuple[Route, Stop]]:
         """Accumulate routes serving marked stops from previous round"""
         route_marked_stops = {}  # i.e. Q
         for marked_stop in marked_stops:
@@ -97,7 +99,6 @@ class McRaptorAlgorithm:
         bag_round_stop: Dict[int, Dict[int, Bag]],
         k: int,
         route_marked_stops: List[Tuple[Route, Stop]],
-        dep_secs: int,
     ) -> Tuple:
         """
         Iterator through the stops reachable and add all new reachable stops
@@ -109,7 +110,7 @@ class McRaptorAlgorithm:
         :param route_marked_stops: list of marked (route, stop) for evaluation
         :param dep_secs: Departure time in seconds
         """
-        logger.debug(f"Traverse trips for round {k}")
+        logger.debug(f"Traverse route for round {k}")
 
         n_evaluations = 0
         n_improvements = 0
@@ -117,9 +118,9 @@ class McRaptorAlgorithm:
         # TODO: Fill
         new_marked_stops = []
 
-        for (marked_route, marked_stop) in route_marked_stops:
+        for route_index, (marked_route, marked_stop) in enumerate(route_marked_stops):
 
-            logger.debug(f"Route {marked_route}, Stop {marked_stop}")
+            logger.debug(f"Traversing {marked_route}, {marked_stop} ({route_index+1}/{len(route_marked_stops)})")
 
             # Get all stops after current stop within the current route
             current_stop_index = marked_route.stop_index(marked_stop)
@@ -128,12 +129,16 @@ class McRaptorAlgorithm:
             # Lege route bag aanmaken
             route_bag = Bag()
 
-            # bepaal earliest trip? om label mee te updaten?
+            # Initialize earliest trip to None
             earliest_trip = None
-
+            set_trace()
             for next_stop_index, current_stop in enumerate(remaining_stops_in_route):
-                # step 1: update arrival times and other criteria of every label L from Br
+                logger.debug(f"Processing stop {current_stop}")
+
+                # step 1: update earliest arrival times and other criteria of every label L from Br
+                logger.debug("Step 1: Update labels")
                 for label in route_bag.labels:
+                    logger.debug(f"> Updating label {label}")
                     trip = self.timetable.trips[
                         label.trip_id
                     ]  # waarom op dezelfde trip door?
@@ -146,22 +151,28 @@ class McRaptorAlgorithm:
                     )  # kan hier trip ook al bij?
 
                 # step 2: merge bag_route into bag_round_stop and remove dominated labels
+                logger.debug("Step 2: Merge bag_route into bag_round_stop of round {k}")
                 bag_round_stop[k][current_stop].merge(route_bag)
+                pprint(bag_round_stop[k][current_stop])
 
                 # step 3: merge B_{k-1}(p) into B_r
+
+                # Can we step out of a later trip at p_i ?
+                logger.debug(f"Step 3: Merge bag_round_stop of previous round {k-1} into route_bag")
                 route_bag.merge(bag_round_stop[k - 1][current_stop])
 
+                pprint(route_bag)
+
                 # assign trips to all newly added labels
-                for label in route_bag.labels:
-                    earliest_arrival_marked_stop = bag_round_stop[k - 1][
-                        marked_stop
-                    ].earliest_arrival()  # plus transfer buffer?
+                for label in bag_round_stop[k-1][current_stop].labels:
+                    logger.debug(f"> Processing {label}")
                     earliest_trip = marked_route.earliest_trip(
-                        earliest_arrival_marked_stop, marked_stop
+                        label.earliest_arrival_time, current_stop
                     )
-
-                    label.trip_id = earliest_trip.id  # dubbel werk?
-
+                    if earliest_trip is not None:
+                        label.trip = earliest_trip
+                pprint(bag_round_stop[k][current_stop])
+                
         logger.debug("- Evaluations    : {}".format(n_evaluations))
         logger.debug("- Improvements   : {}".format(n_improvements))
 

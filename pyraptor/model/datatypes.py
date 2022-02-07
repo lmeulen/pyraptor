@@ -328,15 +328,18 @@ class Route:
         return iter(self.trips)
 
     def add_trip(self, trip: Trip) -> None:
+        """Add trip"""
         self.trips.append(trip)
 
     def add_stop(self, stop: Stop) -> None:
+        """Add stop"""
         self.stops.append(stop)
 
         # (re)make dict to save the order of the stops in the route
         self.stop_order = {stop: index for index, stop in enumerate(self.stops)}
 
     def stop_index(self, stop: Stop):
+        """Stop index"""
         return self.stop_order[stop]
 
     def earliest_trip(self, dts_arr: int, stop: Stop) -> Trip:
@@ -401,6 +404,7 @@ class Routes:
 
 @dataclass
 class Leg:
+    """Leg"""
     from_stop: Stop
     to_stop: Stop
     trip: Trip
@@ -409,12 +413,14 @@ class Leg:
 
     @property
     def dep(self):
+        """Departure time"""
         return [
             tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
         ][0]
 
     @property
     def arr(self):
+        """Arrival time"""
         return [
             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
         ][0]
@@ -442,32 +448,23 @@ def pareto_set_labels(labels: List[Label]):
 
 @dataclass
 class Label:
-    travel_time: int  # earliest arrival trime
+    """Label"""
+    earliest_arrival_time: int  # earliest arrival time
     fare: int
-    trip_id: int  # trip_id of trip to take to obtain travel_time and fare
-    from_stop: Stop  # stop at which we hop-on trip with trip_id
+    trip: Trip  #trip to take to obtain travel_time and fare
+    from_stop: Stop  # stop at which we hop-on trip with trip
 
     @property
     def criteria(self):
-        return [self.travel_time, self.fare]
+        """Criteria"""
+        return [self.earliest_arrival_time, self.fare]
 
-    def update(self, travel_time=None, fare=None):
-        if travel_time:
-            self.travel_time = travel_time
+    def update(self, earliest_arrival_time=None, fare=None):
+        """Update"""
+        if earliest_arrival_time:
+            self.earliest_arrival_time = earliest_arrival_time
         if fare:
             self.fare = fare
-
-    # def __lt__(self, other: Label):
-    #     return self.travel_time < other.travel_time and self.fare < other.fare
-
-    # def __gt__(self, other: Label):
-    #     return self.travel_time > other.travel_time and self.fare > other.fare
-
-    # def __le__(self, other: Label):
-    #     return self.travel_time <= other.travel_time and self.fare <= other.fare
-
-    # def __ge__(self, other: Label):
-    #     return self.travel_time >= other.travel_time and self.fare >= other.fare
 
 
 @dataclass
@@ -482,11 +479,14 @@ class Bag:
         return len(self.labels)
 
     def add(self, label: Label):
+        """Add"""
         self.labels.append(label)
 
     def merge(self, bag: Bag) -> None:
+        """Merge"""
         self.labels.extend(bag.labels)
         self.labels = pareto_set_labels(self.labels)
 
     def earliest_arrival(self) -> int:
-        return min([self.labels[i].travel_time for i in range(len(self))])
+        """Earliest arrival"""
+        return min([self.labels[i].earliest_arrival_time for i in range(len(self))])

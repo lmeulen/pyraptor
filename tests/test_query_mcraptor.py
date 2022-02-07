@@ -1,18 +1,11 @@
 """Test Query McRaptor"""
-from pyraptor import query_mcraptor
-from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop
-from pyraptor.model.mcraptor import (
-    reconstruct_journeys,
-    add_journey_details,
-    print_journeys,
-    pareto_set_labels,
-    Label,
-)
-from tests.utils import to_timetable
 import datetime
+
 import pandas as pd
 import numpy as np
+
+from pyraptor import query_mcraptor
+from tests.utils import to_timetable
 
 
 # def test_run_raptor(timetable_with_fares: Timetable):
@@ -68,13 +61,14 @@ import numpy as np
 
 
 def test_run_mcraptor_toy2():
+    """Test mcraptor run"""
     # Create toy timetable
     load_date = datetime.date(2021, 10, 21)
 
     toy_stops = pd.DataFrame(
         {
             "stop_uic": [f"{i+8400000}" for i in range(1, 9)],
-            "stop_id": [f"s{i}_pl1" for i in range(1, 9)],
+            "stop_id": [f"st{i}_sp1" for i in range(1, 9)],
         }
     )
     toy_stops["parent_stop_id"] = toy_stops["stop_id"].apply(lambda x: x[:-4])
@@ -84,7 +78,7 @@ def test_run_mcraptor_toy2():
             "verkeersdatum_ams": [load_date] * 5,
             "treinnummer": [101] * 5,
             "toeslag": [False] * 5,
-            "stop_id": [f"s{i}_pl1" for i in range(1, 6)],
+            "stop_id": [f"st{i}_sp1" for i in range(1, 6)],
             "vertrekmoment_utc": range(1, 6),
             "aankomstmoment_utc": range(1, 6),
             "vervoerstrajectindex": range(1, 6),
@@ -96,7 +90,7 @@ def test_run_mcraptor_toy2():
             "verkeersdatum_ams": [load_date] * 4,
             "treinnummer": [201] * 4,
             "toeslag": [False] * 4,
-            "stop_id": [f"s{i}_pl1" for i in [8, 7, 4, 6]],
+            "stop_id": [f"st{i}_sp1" for i in [8, 7, 4, 6]],
             "vertrekmoment_utc": np.arange(2.5, 4.5, 0.5),
             "aankomstmoment_utc": np.arange(2.5, 4.5, 0.5),
             "vervoerstrajectindex": range(1, 5),
@@ -108,7 +102,7 @@ def test_run_mcraptor_toy2():
             "verkeersdatum_ams": [load_date] * 2,
             "treinnummer": [301] * 2,
             "toeslag": [False] * 2,
-            "stop_id": [f"s{i}_pl1" for i in [2, 7]],
+            "stop_id": [f"st{i}_sp1" for i in [2, 7]],
             "vertrekmoment_utc": [2, 3],
             "aankomstmoment_utc": [2, 3],
             "vervoerstrajectindex": range(1, 3),
@@ -120,7 +114,7 @@ def test_run_mcraptor_toy2():
             "verkeersdatum_ams": [load_date] * 2,
             "treinnummer": [401] * 2,
             "toeslag": [True] * 2,
-            "stop_id": [f"s{i}_pl1" for i in [2, 4]],
+            "stop_id": [f"st{i}_sp1" for i in [2, 4]],
             "vertrekmoment_utc": [2, 3],
             "aankomstmoment_utc": [2, 3],
             "vervoerstrajectindex": range(1, 3),
