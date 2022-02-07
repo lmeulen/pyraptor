@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 
 from pyraptor import query_mcraptor
+from pyraptor.model.mcraptor import reconstruct_journeys
 from tests.utils import to_timetable
 
 
@@ -77,7 +78,7 @@ def test_run_mcraptor_toy2():
         {
             "verkeersdatum_ams": [load_date] * 5,
             "treinnummer": [101] * 5,
-            "toeslag": [False] * 5,
+            "toeslag": [0] * 5,
             "stop_id": [f"st{i}_sp1" for i in range(1, 6)],
             "vertrekmoment_utc": range(1, 6),
             "aankomstmoment_utc": range(1, 6),
@@ -89,7 +90,7 @@ def test_run_mcraptor_toy2():
         {
             "verkeersdatum_ams": [load_date] * 4,
             "treinnummer": [201] * 4,
-            "toeslag": [False] * 4,
+            "toeslag": [0] * 4,
             "stop_id": [f"st{i}_sp1" for i in [8, 7, 4, 6]],
             "vertrekmoment_utc": np.arange(2.5, 4.5, 0.5),
             "aankomstmoment_utc": np.arange(2.5, 4.5, 0.5),
@@ -101,7 +102,7 @@ def test_run_mcraptor_toy2():
         {
             "verkeersdatum_ams": [load_date] * 2,
             "treinnummer": [301] * 2,
-            "toeslag": [False] * 2,
+            "toeslag": [0] * 2,
             "stop_id": [f"st{i}_sp1" for i in [2, 7]],
             "vertrekmoment_utc": [2, 3],
             "aankomstmoment_utc": [2, 3],
@@ -113,7 +114,7 @@ def test_run_mcraptor_toy2():
         {
             "verkeersdatum_ams": [load_date] * 2,
             "treinnummer": [401] * 2,
-            "toeslag": [True] * 2,
+            "toeslag": [7] * 2,
             "stop_id": [f"st{i}_sp1" for i in [2, 4]],
             "vertrekmoment_utc": [2, 3],
             "aankomstmoment_utc": [2, 3],
@@ -138,17 +139,18 @@ def test_run_mcraptor_toy2():
     origin_station = "8400002"
     destination_station = "8400004"
     departure_time = 2
-    rounds = 3
+    rounds = 2
 
     # Find route between two stations
-    bag_k, final_dest = query_mcraptor.run_mcraptor(
+    bag_round_stop, destination_legs = query_mcraptor.run_mcraptor(
         timetable,
         origin_station,
         destination_station,
         departure_time,
         rounds,
     )
-
-    print(bag_k)
+    journeys = reconstruct_journeys(destination_legs, bag_round_stop, k=rounds)
+    print(bag_round_stop)
+    print(journeys)
 
     assert True

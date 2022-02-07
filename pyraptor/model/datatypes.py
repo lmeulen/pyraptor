@@ -228,22 +228,21 @@ class Trip:
     id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
-    fare = attr.ib(default=None)
+    # fare = attr.ib(default=None)
 
-    def __hash__(self):
-        return hash(self.id)
+    # def __hash__(self):
+    #     return hash(self.id)
 
-    def __eq__(self, trip):
-        return same_type_and_id(self, trip)
+    # def __eq__(self, trip):
+    #     return same_type_and_id(self, trip)
 
     def __repr__(self):
-        return "Trip(id={hint}:{0.id}, stop_times={stop_times}:{first_stop}-{last_stop}, fare={fare})".format(
+        return "Trip(id={hint}:{0.id}, stop_times={stop_times}:{first_stop}-{last_stop})".format(
             self,
             stop_times=len(self.stop_times),
             first_stop=self.stop_times[0].stop.id,
             last_stop=self.stop_times[-1].stop.id,
             hint=self.hint,
-            fare=self.fare,
         )
 
     def __getitem__(self, n):
@@ -450,7 +449,7 @@ def pareto_set_labels(labels: List[Label]):
 class Label:
     """Label"""
     earliest_arrival_time: int  # earliest arrival time
-    fare: int
+    fare: int # total fair
     trip: Trip  #trip to take to obtain travel_time and fare
     from_stop: Stop  # stop at which we hop-on trip with trip
 
@@ -459,12 +458,12 @@ class Label:
         """Criteria"""
         return [self.earliest_arrival_time, self.fare]
 
-    def update(self, earliest_arrival_time=None, fare=None):
-        """Update"""
-        if earliest_arrival_time:
+    def update(self, earliest_arrival_time=None, fare_addition=None):
+        """Update earliest arrival time and add fare_addition to fare"""
+        if earliest_arrival_time is not None:
             self.earliest_arrival_time = earliest_arrival_time
-        if fare:
-            self.fare = fare
+        if fare_addition is not None:
+            self.fare += fare_addition
 
 
 @dataclass

@@ -8,8 +8,8 @@ from pyraptor.dao.timetable import Timetable, read_timetable
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     reconstruct_journeys,
-    final_destination,
-    print_journey,
+    best_stops_at_target_station,
+    print_journeys,
 )
 from pyraptor.util import str2sec
 
@@ -85,7 +85,7 @@ def main(
     logger.debug("Departure time (s.)  : " + str(dep_secs))
 
     # Find route between two stations
-    bag_k, final_dest = run_mcraptor(
+    bag_round_stop, destination_legs = run_mcraptor(
         timetable,
         origin_station,
         destination_station,
@@ -94,9 +94,9 @@ def main(
     )
 
     # Output journey
-    if final_dest != 0:
-        journey = reconstruct_journeys(final_dest, best_bag=bag_k[rounds])
-        print_journey(journey, dep_secs)
+    if len(destination_legs) != 0:
+        journeys = reconstruct_journeys(destination_legs, bag_round_stop, k=rounds)
+        print_journeys(journeys, dep_secs)
 
 
 def run_mcraptor(
@@ -125,15 +125,15 @@ def run_mcraptor(
     bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
 
     # Determine the best destination ID, destination is a platform
-    best_bag = copy(bag_round_stop[rounds])
-    dest_stops = final_destination(to_stops, best_bag)
+    last_round_bag = copy(bag_round_stop[rounds])
+    destination_legs = best_stops_at_target_station(to_stops, last_round_bag)
 
-    if len(dest_stops) != 0:
-        logger.debug("Destination code(s)  : {} ".format(dest_stops))
+    if len(destination_legs) != 0:
+        logger.debug("Destination leg(s)  : {} ".format(destination_legs))
     else:
         logger.info("Destination unreachable with given parameters")
 
-    return bag_round_stop, dest_stops
+    return bag_round_stop, destination_legs
 
 
 if __name__ == "__main__":

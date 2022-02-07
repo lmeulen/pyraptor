@@ -7,7 +7,7 @@ from pdb import set_trace
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Route, Bag, Label, Leg
+from pyraptor.model.datatypes import Stop, Route, Bag, Label, Leg, pareto_set_labels
 from pyraptor.util import (
     sec2str,
     TRANSFER_COST,
@@ -41,7 +41,9 @@ class McRaptorAlgorithm:
 
         # Initialize bag for round 0, i.e. add Labels with criterion 0 for all from stops
         for from_stop in from_stops:
-            bag_round_stop[0][from_stop].add(Label(dep_secs, 0, TRANSFER_TRIP, from_stop))
+            bag_round_stop[0][from_stop].add(
+                Label(dep_secs, 0, TRANSFER_TRIP, from_stop)
+            )
 
         marked_stops = from_stops
 
@@ -53,6 +55,9 @@ class McRaptorAlgorithm:
             # Get list of stops to evaluate in the process
             logger.debug("Stops to evaluate count: {}".format(len(marked_stops)))
 
+            # Copy bag
+            bag_round_stop[k] = deepcopy(bag_round_stop[k-1])
+            
             # Accumulate routes serving marked stops from previous round
             route_marked_stops = self.accumulate_routes(marked_stops)
 
@@ -61,9 +66,9 @@ class McRaptorAlgorithm:
                 deepcopy(bag_round_stop), k, route_marked_stops
             )
 
-            pprint(bag_round_stop)
+            # pprint(bag_round_stop)
 
-            logger.debug("{} reachable stops added".format(len(marked_stops_trips)))
+            logger.debug(f"{len(marked_stops_trips)} reachable stops added")
 
             # Now add footpath transfers and update
             # bag_round_stop = self.add_transfer_time(deepcopy(bag_round_stop), k)
@@ -73,7 +78,10 @@ class McRaptorAlgorithm:
             # logger.debug("{} transferable stops added".format(len(new_stops_transfer)))
 
             marked_stops = set(marked_stops_trips)  # .union(new_stops_transfer)
-            logger.debug("{} stops to evaluate in next round".format(len(marked_stops)))
+            logger.debug(f"{len(marked_stops)} stops to evaluate in next round")
+
+        logger.info("Output bag:")
+        pprint(bag_round_stop)
 
         return bag_round_stop
 
@@ -112,69 +120,66 @@ class McRaptorAlgorithm:
         """
         logger.debug(f"Traverse route for round {k}")
 
-        n_evaluations = 0
-        n_improvements = 0
-
-        # TODO: Fill
         new_marked_stops = []
 
         for route_index, (marked_route, marked_stop) in enumerate(route_marked_stops):
 
-            logger.debug(f"Traversing {marked_route}, {marked_stop} ({route_index+1}/{len(route_marked_stops)})")
+            logger.debug(
+                f"Traversing {marked_route}, {marked_stop} ({route_index+1}/{len(route_marked_stops)})"
+            )
 
             # Get all stops after current stop within the current route
-            current_stop_index = marked_route.stop_index(marked_stop)
-            remaining_stops_in_route = marked_route.stops[current_stop_index:]
+            marked_stop_index = marked_route.stop_index(marked_stop)
+            remaining_stops_in_route = marked_route.stops[marked_stop_index:]
 
             # Lege route bag aanmaken
             route_bag = Bag()
 
             # Initialize earliest trip to None
-            earliest_trip = None
-            set_trace()
-            for next_stop_index, current_stop in enumerate(remaining_stops_in_route):
-                logger.debug(f"Processing stop {current_stop}")
+            for current_stop_index, current_stop in enumerate(remaining_stops_in_route):
+                logger.debug(
+                    f"Processing stop {current_stop} ({current_stop_index+1}/{len(remaining_stops_in_route)})"
+                )
+                # set_trace()
 
+                if current_stop != marked_stop and current_stop not in new_marked_stops:
+                    new_marked_stops.append(current_stop)
+                
                 # step 1: update earliest arrival times and other criteria of every label L from Br
                 logger.debug("Step 1: Update labels")
                 for label in route_bag.labels:
                     logger.debug(f"> Updating label {label}")
-                    trip = self.timetable.trips[
-                        label.trip_id
-                    ]  # waarom op dezelfde trip door?
-                    trip_stop_idx = current_stop_index + next_stop_index
-                    trip_stop_time = self.timetable.trip_stop_times.set_idx[
-                        (trip, trip_stop_idx)
-                    ]  # key error?
+                    trip_stop_time = label.trip.get_stop(current_stop)
                     label.update(
-                        travel_time=trip_stop_time.dts_arr, fare=trip_stop_time.fare
-                    )  # kan hier trip ook al bij?
+                        earliest_arrival_time=trip_stop_time.dts_arr, fare_addition=trip_stop_time.fare
+                    )
+                    logger.debug(f"> to {label}")
 
                 # step 2: merge bag_route into bag_round_stop and remove dominated labels
-                logger.debug("Step 2: Merge bag_route into bag_round_stop of round {k}")
-                bag_round_stop[k][current_stop].merge(route_bag)
-                pprint(bag_round_stop[k][current_stop])
+                logger.debug(f"Step 2: Merge bag_route into bag_round_stop of round {k}")
+                bag_round_stop[k][current_stop].merge(deepcopy(route_bag))
+                pprint(bag_round_stop[k])
 
                 # step 3: merge B_{k-1}(p) into B_r
-
-                # Can we step out of a later trip at p_i ?
-                logger.debug(f"Step 3: Merge bag_round_stop of previous round {k-1} into route_bag")
-                route_bag.merge(bag_round_stop[k - 1][current_stop])
+                logger.debug(
+                    f"Step 3: Merge bag_round_stop of previous round {k-1} into route_bag"
+                )
+                route_bag.merge(deepcopy(bag_round_stop[k - 1][current_stop]))
 
                 pprint(route_bag)
 
                 # assign trips to all newly added labels
-                for label in bag_round_stop[k-1][current_stop].labels:
+                for label in route_bag.labels:
                     logger.debug(f"> Processing {label}")
                     earliest_trip = marked_route.earliest_trip(
                         label.earliest_arrival_time, current_stop
                     )
                     if earliest_trip is not None:
                         label.trip = earliest_trip
-                pprint(bag_round_stop[k][current_stop])
-                
-        logger.debug("- Evaluations    : {}".format(n_evaluations))
-        logger.debug("- Improvements   : {}".format(n_improvements))
+                        label.from_stop = current_stop
+                        logger.debug(f"> Updating to {label}")
+                pprint(bag_round_stop[k - 1])
+            pprint(bag_round_stop)
 
         return bag_round_stop, new_marked_stops
 
@@ -202,63 +207,64 @@ class McRaptorAlgorithm:
         return TRANSFER_COST
 
 
-def final_destination(
-    to_stops: List[Stop], best_bag: Dict[int, List[Label]]
+def best_stops_at_target_station(
+    to_stops: List[Stop], last_round_bag: Dict[Stop, Bag]
 ) -> List[Leg]:
     """
-    Find the destination IDs that are not dominated by other journeys.
-    Required in order to prevent adding travel time to the arrival time.
+    Find the stop IDs of target station that are reached by non-dominated labels.
     """
-    destinations = []
+    # Find all labels to target_stops
+    best_labels = [(stop, label) for stop in to_stops for label in last_round_bag[stop].labels]
 
-    for stop in to_stops:
-        for label in best_bag[stop.index]:
+    # Pareto optimal labels
+    pareto_optimal_labels = pareto_set_labels([label for (_, label) in best_labels])
+    pareto_optimal_labels = [(stop, label) for (stop, label) in best_labels if label in pareto_optimal_labels]
 
-            # Label to leg
-            leg = Leg(
-                label.previous_stop, label.trip_id, stop, label.travel_time, label.fare
-            )
-
-            # TODO: Filter with pareto function
-
-    return destinations
+    # Label to leg, i.e. add to_stop
+    legs = [
+        Leg(label.from_stop, to_stop, label.trip, label.earliest_arrival_time, label.fare) 
+        for (to_stop, label) in pareto_optimal_labels
+    ]
+    return legs
 
 
 def reconstruct_journeys(
-    destination_labels: List[Leg], best_bag: Dict[int, List[Label]]
+    destination_legs: List[Leg], bag_round_stop: Dict[int, Dict[Stop, Bag]], k:int
 ) -> List[List[Leg]]:
     """Construct journeys for destinations from values in bag."""
 
     # Create journeys with list of legs
-    def loop(best_bag: Dict[int, List[Label]], all_journeys: List[List[Leg]]):
+    def loop(last_round_bags: Dict[Stop, Bag], all_journeys: List[List[Leg]]):
         """Create journeys as list of Legs"""
         for jrny in all_journeys:
             current_leg = jrny[-1]
-            current_stop = current_leg.previous_stop
+            current_stop = current_leg.from_stop
 
             # End of journey
-            if current_leg.trip_id == 0:
+            if current_leg.trip is not None:
                 yield jrny
                 break
 
             # Loop trough each new leg
-            for new_label in best_bag[current_stop.index]:
-                # trip = timetable.trips.set_idx[leg.trip_id]
+            for new_label in last_round_bags[current_stop].labels:
                 new_leg = Leg(
-                    new_label.previous_stop,
+                    new_label.from_stop,
                     current_stop,
-                    new_label.trip_id,  # TODO: Trip
-                    new_label.travel_time,
+                    new_label.trip,
+                    new_label.earliest_arrival_time,
                     new_label.fare,
                 )
                 new_jrny = [jrny + [new_leg]]
-                for i in loop(best_bag, new_jrny):
+                for i in loop(last_round_bags, new_jrny):
                     yield i
 
-    journeys = [[l] for l in destination_labels]
-    journeys = loop(best_bag, journeys)
+    import pdb; pdb.set_trace()
+
+    last_round_bags = bag_round_stop[k]
+    journeys = [[l] for l in destination_legs]
+    journeys = loop(last_round_bags, journeys)
     journeys = [jrn[::-1] for jrn in journeys]  # reverse
-    journeys = [[leg for leg in jrny if leg.trip_id != 0] for jrny in journeys]
+    journeys = [[leg for leg in jrny if leg.trip is not None] for jrny in journeys]
 
     return journeys
 
