@@ -47,7 +47,7 @@ def parse_arguments():
         "-o",
         "--output",
         type=str,
-        default="output/optimized_timetable",
+        default="output/timetable",
         help="Input directory",
     )
     parser.add_argument(

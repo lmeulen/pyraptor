@@ -1,8 +1,7 @@
 """McRAPTOR algorithm"""
 from typing import List, Tuple, Dict
-from pprint import pprint
 from copy import deepcopy
-from pdb import set_trace
+from pprint import pprint
 
 from loguru import logger
 
@@ -348,7 +347,7 @@ def reconstruct_journeys(
                     new_jrny = [jrny + [new_leg]]
                     # logger.debug("new_jrny")
                     # pprint(new_jrny)
-                    for i in loop(last_round_bags, deepcopy(new_jrny)):
+                    for i in loop(last_round_bags, new_jrny):
                         yield i
 
     last_round_bags = bag_round_stop[k]

@@ -22,7 +22,7 @@ def parse_arguments():
         "-i",
         "--input",
         type=str,
-        default="output/optimized_timetable",
+        default="output/timetable",
         help="Input directory",
     )
     parser.add_argument(

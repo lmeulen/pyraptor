@@ -20,11 +20,11 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 ### 2. Run (range) queries on timetable
 
-`python pyraptor/query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+`python pyraptor/query.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
 
-`python pyraptor/range_query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
+`python pyraptor/range_query.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
 
-`python pyraptor/query_mcraptor.py -i output/optimized_timetable -or "Breda" -d "Amsterdam Centraal" -t "08:30:00" -r 2`
+`python pyraptor/query_mcraptor.py -i output/timetable -or "Breda" -d "Amsterdam Centraal" -t "08:30:00" -r 2`
 
 # Notes
 
