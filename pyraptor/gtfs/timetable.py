@@ -235,7 +235,14 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
             # TODO: Replace manual ICD fare fix
             fare = 0
             if trip.hint >= 900 and trip.hint <= 1099:
-                fare = 5
+                schiphol = stations.get("Schiphol Airport")
+                rotterdam_centraal = stations.get("Rotterdam Centraal")
+                if (trip.hint % 2 == 0 and stop.station == schiphol):
+                    fare = 1.67
+                elif (trip.hint % 2 == 1 and stop.station == rotterdam_centraal):
+                    fare = 1.67
+                else:
+                    fare = 0
             trip_stop_time = TripStopTime(trip, stopidx, stop, dts_arr, dts_dep, fare)
 
             trip_stop_times.add(trip_stop_time)

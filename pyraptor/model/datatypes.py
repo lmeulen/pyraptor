@@ -186,6 +186,7 @@ class TripStopTimes:
         return iter(self.set_idx.values())
 
     def add(self, trip_stop_time: TripStopTime):
+        """Add trip stop time"""
         self.set_idx[(trip_stop_time.trip, trip_stop_time.stopidx)] = trip_stop_time
         self.stop_trip_idx[trip_stop_time.stop].append(trip_stop_time)
 
@@ -210,7 +211,7 @@ class TripStopTimes:
 
         :param stop_id: Stop
         :param dep_secs: Departure time
-        :param forward: Period forward limitimg trips
+        :param forward: Period forward limiting trips
         """
         trip_stop_times = self.stop_trip_idx[stop]
         in_window = [
@@ -240,7 +241,6 @@ class Trip:
     id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
-    # fare = attr.ib(default=None)
 
     # def __hash__(self):
     #     return hash(self.id)
@@ -249,12 +249,11 @@ class Trip:
     #     return same_type_and_id(self, trip)
 
     def __repr__(self):
-        return "Trip(id={hint}:{0.id}, stop_times={stop_times}:{first_stop}-{last_stop})".format(
-            self,
+        return "Trip(hint={hint}, stop_times={stop_times}:{first_stop}-{last_stop})".format(
+            hint=self.hint if self.hint is not None else self.id,
             stop_times=len(self.stop_times),
             first_stop=self.stop_times[0].stop.id,
             last_stop=self.stop_times[-1].stop.id,
-            hint=self.hint,
         )
 
     def __getitem__(self, n):
@@ -270,6 +269,7 @@ class Trip:
         return tuple([s.stop.id for s in self.stop_times])
 
     def add_stop_time(self, stop_time: TripStopTime):
+        """Add stop time"""
         assert stop_time.dts_arr <= stop_time.dts_dep
         assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
         self.stop_times.append(stop_time)
@@ -278,8 +278,14 @@ class Trip:
         return [st for st in self.stop_times if st.stopidx > stop_idx]
 
     def get_stop(self, stop: Stop) -> TripStopTime:
+        """Get stop"""
         stop_times = [st for st in self.stop_times if st.stop == stop]
         return stop_times[0] if len(stop_times) > 0 else None
+
+    def get_fare(self, depart_stop: Stop) -> int:
+        """Get fare from depart_stop"""
+        stop_time = self.get_stop(depart_stop)
+        return 0 if stop_time is None else stop_time.fare
 
 
 class Trips:
@@ -302,6 +308,7 @@ class Trips:
         return iter(self.set_idx.values())
 
     def add(self, trip):
+        """Add trip"""
         assert len(trip) >= 2, "must have 2 stop times"
         trip.id = self.last_id
         self.set_idx[trip.id] = trip

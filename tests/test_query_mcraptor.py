@@ -20,14 +20,14 @@ def test_run_mcraptor(timetable_with_transfers_and_fares):
     rounds = 2
 
     # Find route between two stations
-    bag_round_stop, journeys = query_mcraptor.run_mcraptor(
+    journeys = query_mcraptor.run_mcraptor(
         timetable_with_transfers_and_fares,
         origin_station,
         destination_station,
         departure_time,
         rounds,
     )
-    pprint(bag_round_stop)
+    # pprint(bag_round_stop)
     print_journeys(journeys, departure_time)
 
     assert True

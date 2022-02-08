@@ -217,6 +217,8 @@ def get_stop_times_with_fare():
     )
 
     stop_times = pd.concat([trip1, trip2, trip3, trip4], axis=0, ignore_index=True)
+    stop_times["vertrekmoment_utc"] *= 600
+    stop_times["aankomstmoment_utc"] *= 600
     trips = stop_times[
         ["verkeersdatum_ams", "treinnummer", "trip_id", "toeslag"]
     ].drop_duplicates()
