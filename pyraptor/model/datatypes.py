@@ -220,6 +220,18 @@ class TripStopTimes:
         ]
         return in_window
 
+    def get_earliest_trip(self, stop: Stop, dep_secs: int) -> Trip:
+        """Earliest trip"""
+        trip_stop_times = self.stop_trip_idx[stop]
+        in_window = [tst for tst in trip_stop_times if tst.dts_dep >= dep_secs]
+        return in_window[0].trip if len(in_window) > 0 else None
+
+    def get_earliest_trip_stop_time(self, stop: Stop, dep_secs: int) -> TripStopTime:
+        """Earliest trip stop time"""
+        trip_stop_times = self.stop_trip_idx[stop]
+        in_window = [tst for tst in trip_stop_times if tst.dts_dep >= dep_secs]
+        return in_window[0] if len(in_window) > 0 else None
+
 
 @attr.s(repr=False, cmp=False)
 class Trip:
@@ -404,6 +416,7 @@ class Routes:
 @dataclass
 class Leg:
     """Leg"""
+
     from_stop: Stop
     to_stop: Stop
     trip: Trip
@@ -448,9 +461,10 @@ def pareto_set_labels(labels: List[Label]):
 @dataclass
 class Label:
     """Label"""
+
     earliest_arrival_time: int  # earliest arrival time
-    fare: int # total fair
-    trip: Trip  #trip to take to obtain travel_time and fare
+    fare: int  # total fair
+    trip: Trip  # trip to take to obtain travel_time and fare
     from_stop: Stop  # stop at which we hop-on trip with trip
 
     @property

@@ -231,7 +231,12 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
 
             # Trip Stop Times
             stop = stops.get(stop_time.stop_id)
-            trip_stop_time = TripStopTime(trip, stopidx, stop, dts_arr, dts_dep)
+
+            # TODO: Replace manual ICD fare fix
+            fare = 0
+            if trip.hint >= 900 and trip.hint <= 1099:
+                fare = 5
+            trip_stop_time = TripStopTime(trip, stopidx, stop, dts_arr, dts_dep, fare)
 
             trip_stop_times.add(trip_stop_time)
             trip.add_stop_time(trip_stop_time)

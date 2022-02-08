@@ -176,17 +176,18 @@ class RaptorAlgorithm:
             current_stop_index = marked_route.stop_index(marked_stop)
             remaining_stops_in_route = marked_route.stops[current_stop_index:]
             boarding_stop = None
-            for next_stop in remaining_stops_in_route:
+
+            for current_stop in remaining_stops_in_route:
                 # Can the label be improved in this round?
 
-                logger.debug(f"Traversing route: {next_stop}")
+                logger.debug(f"Traversing route: {current_stop}")
                 n_evaluations += 1
 
                 # t != _|_
                 if current_trip is not None:
                     # Arrival time at stop, i.e. arr(current_trip, next_stop)
-                    new_arrival_time = current_trip.get_stop(next_stop).dts_arr
-                    best_arrival_time = self.bag_star[next_stop].travel_time
+                    new_arrival_time = current_trip.get_stop(current_stop).dts_arr
+                    best_arrival_time = self.bag_star[current_stop].travel_time
 
                     if new_arrival_time < best_arrival_time:
                         # Update arrival by trip, i.e.
@@ -194,33 +195,33 @@ class RaptorAlgorithm:
                         #   t_star(p_i) = t_arr(t, pi)
                         logger.debug("Improvement")
                         logger.debug(
-                            f"{next_stop}, current {current_trip}, boarding {boarding_stop}"
+                            f"{current_stop}, current {current_trip}, boarding {boarding_stop}"
                         )
-                        logger.debug(f"From {self.bag_star[next_stop]}")
-                        bag_round_stop[k][next_stop].update(
+                        logger.debug(f"From {self.bag_star[current_stop]}")
+                        bag_round_stop[k][current_stop].update(
                             new_arrival_time, current_trip, boarding_stop
                         )
-                        self.bag_star[next_stop].update(
+                        self.bag_star[current_stop].update(
                             new_arrival_time, current_trip, boarding_stop
                         )
-                        logger.debug(f"To: {bag_round_stop[k][next_stop]}")
+                        logger.debug(f"To: {bag_round_stop[k][current_stop]}")
 
                         # Logging
                         n_improvements += 1
-                        new_stops.append(next_stop)
+                        new_stops.append(current_stop)
 
                 # Can we catch an earlier trip at p_i
                 # if tau_{k-1}(next_stop) <= tau_dep(t, next_stop)
-                previous_arrival_time = bag_round_stop[k - 1][next_stop].travel_time
-                earliest_trip_stop_time = marked_route.earliest_trip_stop_time(
-                    previous_arrival_time, next_stop
+                previous_arrival_time = bag_round_stop[k - 1][current_stop].travel_time
+                earliest_trip = marked_route.earliest_trip(
+                    previous_arrival_time, current_stop
                 )
                 if (
-                    earliest_trip_stop_time is not None
+                    earliest_trip is not None
                     and previous_arrival_time <= earliest_trip_stop_time.dts_dep
                 ):
                     current_trip = earliest_trip_stop_time.trip
-                    boarding_stop = next_stop
+                    boarding_stop = current_stop
                     logger.debug(f"New current trip: {current_trip}, {boarding_stop}")
 
         logger.debug("- Evaluations    : {}".format(n_evaluations))

@@ -24,9 +24,11 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 `python pyraptor/range_query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
 
+`python pyraptor/query_mcraptor.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+
 # Notes
 
-- The current version doesn't implement target pruning as performance is sufficient already.
+- The current version doesn't implement target pruning as we are interested in querying all targets at once and performance is sufficient already.
 
 # References
 

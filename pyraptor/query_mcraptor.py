@@ -95,7 +95,8 @@ def main(
 
     # Output journey
     if len(destination_legs) != 0:
-        journeys = reconstruct_journeys(destination_legs, bag_round_stop, k=rounds)
+        from_stops = timetable.stations.get(origin_station).stops
+        journeys = reconstruct_journeys(from_stops, destination_legs, bag_round_stop, k=rounds)
         print_journeys(journeys, dep_secs)
 
 
