@@ -85,7 +85,7 @@ def main(
     logger.debug("Departure time (s.)  : " + str(dep_secs))
 
     # Find route between two stations
-    bag_round_stop, destination_legs = run_mcraptor(
+    bag_round_stop, journeys = run_mcraptor(
         timetable,
         origin_station,
         destination_station,
@@ -94,9 +94,7 @@ def main(
     )
 
     # Output journey
-    if len(destination_legs) != 0:
-        from_stops = timetable.stations.get(origin_station).stops
-        journeys = reconstruct_journeys(from_stops, destination_legs, bag_round_stop, k=rounds)
+    if len(journeys) != 0:
         print_journeys(journeys, dep_secs)
 
 
@@ -134,7 +132,9 @@ def run_mcraptor(
     else:
         logger.info("Destination unreachable with given parameters")
 
-    return bag_round_stop, destination_legs
+    journeys = reconstruct_journeys(from_stops, destination_legs, bag_round_stop, k=rounds)
+
+    return bag_round_stop, journeys
 
 
 if __name__ == "__main__":

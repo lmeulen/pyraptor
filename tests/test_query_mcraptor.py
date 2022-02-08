@@ -2,7 +2,7 @@
 from pprint import pprint
 
 from pyraptor import query_mcraptor
-from pyraptor.model.mcraptor import reconstruct_journeys, print_journeys
+from pyraptor.model.mcraptor import print_journeys
 
 
 def test_run_mcraptor(timetable_with_transfers_and_fares):
@@ -20,15 +20,14 @@ def test_run_mcraptor(timetable_with_transfers_and_fares):
     rounds = 2
 
     # Find route between two stations
-    bag_round_stop, destination_legs = query_mcraptor.run_mcraptor(
+    bag_round_stop, journeys = query_mcraptor.run_mcraptor(
         timetable_with_transfers_and_fares,
         origin_station,
         destination_station,
         departure_time,
         rounds,
     )
-    pprint(bag_round_stop)    
-    journeys = reconstruct_journeys(destination_legs, bag_round_stop, k=rounds)
+    pprint(bag_round_stop)
     print_journeys(journeys, departure_time)
 
     assert True
