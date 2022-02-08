@@ -4,11 +4,11 @@ import argparse
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable, read_timetable
-from pyraptor.dao.results import write_results
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
     reconstruct_journey,
-    final_destination,
+    best_stop_at_target_station,
+    reconstruct_journey,
     print_journey,
 )
 from pyraptor.util import str2sec
@@ -126,19 +126,21 @@ def run_raptor(
 
     # Determine the best destination ID, destination is a platform
     best_labels = bag_round_stop[rounds]
-    dest_stop = final_destination(to_stops, best_labels)
+    dest_stop = best_stop_at_target_station(to_stops, best_labels)
 
     if dest_stop != 0:
         logger.debug("Destination code   : {} ".format(dest_stop))
         logger.info(
             "Time to destination: {:.2f} minutes".format(
-                best_labels[dest_stop].travel_time / 60
+                best_labels[dest_stop].earliest_arrival_time / 60
             )
         )
     else:
         logger.info("Destination unreachable with given parameters")
 
-    return best_labels, dest_stop
+    journey = reconstruct_journey(dest_stop, best_labels)
+
+    return journey
 
 
 if __name__ == "__main__":

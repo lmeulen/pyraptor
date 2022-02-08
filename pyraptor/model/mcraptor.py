@@ -84,7 +84,7 @@ class McRaptorAlgorithm:
         return bag_round_stop
 
     def accumulate_routes(self, marked_stops) -> List[Tuple[Route, Stop]]:
-        """Accumulate routes serving marked stops from previous round"""
+        """Accumulate routes serving marked stops from previous round, i.e. Q"""
         route_marked_stops = {}  # i.e. Q
         for marked_stop in marked_stops:
             routes_serving_stop = self.timetable.routes.get_routes_of_stop(marked_stop)

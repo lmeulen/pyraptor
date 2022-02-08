@@ -1,16 +1,16 @@
 """conftest"""
-import pytest
 import datetime
 
+import pytest
 import pandas as pd
 import numpy as np
 
 from pyraptor.dao.timetable import Timetable
-from .utils import to_stops_and_trips, to_timetable
+from tests.utils import to_stops_and_trips, to_timetable
 
 
 @pytest.fixture(scope="session")
-def timetable() -> Timetable:
+def default_timetable() -> Timetable:
     """Default timetable"""
 
     df = get_data()
@@ -107,34 +107,6 @@ def get_data():
                 2,
                 0,
             ],
-            # Crossing route
-            # [
-            #     trip_offset + 404,
-            #     "B",
-            #     time_offset + 300,
-            #     time_offset + 300,
-            #     "0",
-            #     1,
-            #     0,
-            # ],
-            # [
-            #     trip_offset + 404,
-            #     "C",
-            #     time_offset + 800,
-            #     time_offset + 800,
-            #     "3",
-            #     2,
-            #     0,
-            # ],
-            # [
-            #     trip_offset + 404,
-            #     "F",
-            #     time_offset + 1900,
-            #     time_offset + 1900,
-            #     "0",
-            #     3,
-            #     0,
-            # ],
         ]
 
     data = data_with_offset(trip_offset=0, time_offset=0) + data_with_offset(
@@ -145,11 +117,11 @@ def get_data():
         columns=[
             "treinnummer",
             "code",
-            "dts_arr",
-            "dts_dep",
+            "aankomstmoment_utc",
+            "vertrekmoment_utc",
             "spoor",
-            "trip_index",
-            "fare",
+            "vervoerstrajectindex",
+            "toeslag",
         ],
     )
     return df

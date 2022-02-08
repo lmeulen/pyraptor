@@ -31,16 +31,16 @@ def to_stops_and_trips(df: pd.DataFrame):
     # Split in parent and child stops, i.e. stations and platforms
     stops_parents = stops.copy()
     stops_parents["stop_id"] = stops_parents["code"]
-    stops_parents["parent_stop_id"] = None
+    stops_parents["stop_uic"] = None
     stops_parents = stops_parents.drop(columns=["spoor"])
 
     stops_child = stops.copy()
-    stops_child["parent_stop_id"] = stops_child["code"]
+    stops_child["stop_uic"] = stops_child["code"]
     stops_child["stop_id"] = stops_child.apply(lambda x: x["code"] + x["spoor"], axis=1)
     stops_child = stops_child.drop(columns=["spoor"])
 
     stops = pd.concat([stops_parents, stops_child]).drop_duplicates()
-    stops = stops.loc[~stops.parent_stop_id.isna()]
+    stops = stops.loc[~stops.stop_uic.isna()]
 
     # Stop Times
     stop_times = df.copy()
@@ -49,10 +49,10 @@ def to_stops_and_trips(df: pd.DataFrame):
         [
             "treinnummer",
             "stop_id",
-            "dts_arr",
-            "dts_dep",
-            "trip_index",
-            "fare",
+            "aankomstmoment_utc",
+            "vertrekmoment_utc",
+            "vervoerstrajectindex",
+            "toeslag",
         ]
     )
     stop_times = stop_times.merge(trips, how="left", on=["treinnummer"])
@@ -94,11 +94,11 @@ def to_timetable(stops_df, stop_times_df, trips_df) -> Timetable:
             stop_times[trip_row.trip_id], key=lambda s: int(s.vervoerstrajectindex)
         )
         for stopidx, stop_time in enumerate(sort_stop_times):
-
             # Timestamps
             dts_arr = stop_time.aankomstmoment_utc
             dts_dep = stop_time.vertrekmoment_utc
-            # Fair
+
+            # Fare
             fare = stop_time.toeslag
 
             # Trip Stop Times

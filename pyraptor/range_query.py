@@ -7,7 +7,7 @@ from loguru import logger
 from pyraptor.dao.timetable import Timetable, read_timetable
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
-    final_destination,
+    best_stop_at_target_station,
     reconstruct_journey,
     is_dominated,
     print_journey,
@@ -148,7 +148,7 @@ def run_recursive_raptor(
 
     for dep_index, dep_secs in enumerate(potential_dep_secs):
         logger.info(f"Processing {dep_index} / {len(potential_dep_secs)}")
-        logger.info("Analyzing best journey for departure time {}".format(dep_secs))
+        logger.info(f"Analyzing best journey for departure time {dep_secs}")
 
         # Run Round-Based Algorithm
         raptor = RaptorAlgorithm(timetable)
@@ -157,7 +157,7 @@ def run_recursive_raptor(
         # Determine the best destination ID, destination is a platform
         best_labels = bag_round_stop[rounds]
         for destination_station_name, to_stops in destination_stop_ids.items():
-            dest_id = final_destination(to_stops, best_labels)
+            dest_id = best_stop_at_target_station(to_stops, best_labels)
             if dest_id != 0:
                 journey = reconstruct_journey(dest_id, best_labels)
                 last_round_journey = last_round_labels[destination_station_name]
