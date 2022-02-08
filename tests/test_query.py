@@ -13,7 +13,7 @@ def test_query_raptor(default_timetable: Timetable):
     origin_station = "A"
     destination_station = "F"
     dep_secs = 0
-    rounds = 2
+    rounds = 4
 
     journey = query.run_raptor(
         default_timetable,
@@ -27,4 +27,4 @@ def test_query_raptor(default_timetable: Timetable):
 
     query.print_journey(journey, dep_secs)
 
-    assert len(journey) == 2, "should have 2 trips in journey"
+    assert len(journey) == 3, "should have 2 trips in journey"
