@@ -127,7 +127,7 @@ def run_raptor(
     dest_stop = best_stop_at_target_station(to_stops, best_labels)
 
     if dest_stop != 0:
-        logger.debug("Destination code   : {} ".format(dest_stop))
+        logger.debug(f"Destination code   : {dest_stop} ")
         logger.info(
             "Time to destination: {:.2f} minutes".format(
                 (best_labels[dest_stop].earliest_arrival_time - dep_secs) / 60

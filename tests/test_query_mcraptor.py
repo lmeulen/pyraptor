@@ -5,7 +5,7 @@ from pyraptor.model.datatypes import Stop, Label
 
 
 def test_run_mcraptor(timetable_with_transfers_and_fares):
-    """Test mcraptor run"""
+    """Test run mcraptor"""
 
     # Run McRaptor for the query starting at s2 and going to s4
     # This should yield 2 non-discriminating options for the timetable_with_fares
@@ -35,9 +35,7 @@ def test_run_mcraptor(timetable_with_transfers_and_fares):
 
 
 def test_pareto_set_labels():
-    """
-    test for creating pareto set
-    """
+    """test creating pareto set"""
 
     stop = Stop(1, 1, "UT", "13")
 

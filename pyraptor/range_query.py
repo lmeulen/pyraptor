@@ -84,18 +84,16 @@ def main(
 
     timetable = read_timetable(input_folder)
 
-    logger.info("Calculating network from : {}".format(origin_station))
+    logger.info(f"Calculating network from : {origin_station}")
 
     # Departure time seconds for time range
     dep_secs_min = str2sec(departure_start_time)
     dep_secs_max = str2sec(departure_end_time)
-    logger.debug(
-        "Departure time range (s.)  : ({}, {})".format(dep_secs_min, dep_secs_max)
-    )
+    logger.debug(f"Departure time range (s.)  : ({dep_secs_min}, {dep_secs_max})")
 
     # Find route between two stations for time range, i.e. Range Query
     # traveltime, final_dest, stop_bag
-    journeys_to_destinations = run_recursive_raptor(
+    journeys_to_destinations = run_range_raptor(
         timetable,
         origin_station,
         dep_secs_min,
@@ -107,7 +105,7 @@ def main(
     print_journeys(journeys_to_destinations, destination_station)
 
 
-def run_recursive_raptor(
+def run_range_raptor(
     timetable: Timetable,
     origin_station: str,
     dep_secs_min: int,
@@ -115,15 +113,15 @@ def run_recursive_raptor(
     rounds: int,
 ):
     """
-    Perform the RAPTOR algorithm for a range query.
+    Perform the RAPTOR algorithm for a range query
     """
 
-    # Get stop IDs for origins and destinations
+    # Get stops for origins and destinations
     from_stops = timetable.stations.get_stops(origin_station)
-    destination_stop_ids = {
+    destination_stops = {
         st.name: timetable.stations.get_stops(st.name) for st in timetable.stations
     }
-    destination_stop_ids.pop(origin_station, None)
+    destination_stops.pop(origin_station, None)
 
     # Find all trips leaving from stops within time range
     potential_trip_stop_times = timetable.trip_stop_times.get_trip_stop_times_in_range(
@@ -140,10 +138,10 @@ def run_recursive_raptor(
     )
 
     journeys_to_destinations = {
-        station_name: [] for station_name, _ in destination_stop_ids.items()
+        station_name: [] for station_name, _ in destination_stops.items()
     }
     last_round_labels = {
-        station_name: None for station_name, _ in destination_stop_ids.items()
+        station_name: None for station_name, _ in destination_stops.items()
     }
 
     for dep_index, dep_secs in enumerate(potential_dep_secs):
@@ -153,12 +151,12 @@ def run_recursive_raptor(
         # Run Round-Based Algorithm
         raptor = RaptorAlgorithm(timetable)
         bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
+        best_labels = bag_round_stop[rounds]
 
         # Determine the best destination ID, destination is a platform
-        import pdb; pdb.set_trace()
-        best_labels = bag_round_stop[rounds]
-        for destination_station_name, to_stops in destination_stop_ids.items():
+        for destination_station_name, to_stops in destination_stops.items():
             dest_stop = best_stop_at_target_station(to_stops, best_labels)
+
             if dest_stop != 0:
                 journey = reconstruct_journey(dest_stop, best_labels)
                 last_round_journey = last_round_labels[destination_station_name]

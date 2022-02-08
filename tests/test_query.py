@@ -4,6 +4,7 @@ from pyraptor.dao.timetable import Timetable
 
 
 def test_has_main():
+    """Has main"""
     assert query.main
 
 

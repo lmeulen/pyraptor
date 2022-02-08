@@ -198,7 +198,6 @@ def get_stop_times_with_fare():
     return stops, stop_times, trips
 
 
-
 def get_stop_times_with_transfers_and_fare():
     """Create timetable with fare"""
     traffic_date = datetime.date(2021, 10, 21)
@@ -229,8 +228,12 @@ def get_stop_times_with_transfers_and_fare():
             "treinnummer": [201] * 4,
             "toeslag": [0] * 4,
             "stop_id": [f"st{i}_sp1" for i in [8, 7, 4, 6]],
-            "vertrekmoment_utc": np.arange(2.75, 4.75, 0.5),  # np.arange(2.5, 4.5, 0.5),
-            "aankomstmoment_utc": np.arange(2.75, 4.75, 0.5),  # np.arange(2.5, 4.5, 0.5),
+            "vertrekmoment_utc": np.arange(
+                2.75, 4.75, 0.5
+            ),  # np.arange(2.5, 4.5, 0.5),
+            "aankomstmoment_utc": np.arange(
+                2.75, 4.75, 0.5
+            ),  # np.arange(2.5, 4.5, 0.5),
             "vervoerstrajectindex": range(1, 5),
             "trip_id": [2] * 4,
         }

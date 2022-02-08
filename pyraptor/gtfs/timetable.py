@@ -176,8 +176,6 @@ def read_gtfs_timetable(
     gtfs_timetable.stop_times = stop_times
     gtfs_timetable.stops = stops
 
-    # import pdb; pdb.set_trace()
-
     return gtfs_timetable
 
 
@@ -237,9 +235,9 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
             if trip.hint >= 900 and trip.hint <= 1099:
                 schiphol = stations.get("Schiphol Airport")
                 rotterdam_centraal = stations.get("Rotterdam Centraal")
-                if (trip.hint % 2 == 0 and stop.station == schiphol):
+                if trip.hint % 2 == 0 and stop.station == schiphol:
                     fare = 1.67
-                elif (trip.hint % 2 == 1 and stop.station == rotterdam_centraal):
+                elif trip.hint % 2 == 1 and stop.station == rotterdam_centraal:
                     fare = 1.67
                 else:
                     fare = 0

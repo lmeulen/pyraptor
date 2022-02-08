@@ -52,7 +52,7 @@ def parse_arguments():
         "-r",
         "--rounds",
         type=int,
-        default=3,
+        default=4,
         help="Number of rounds to execute the RAPTOR algorithm",
     )
     arguments = parser.parse_args()
@@ -132,7 +132,9 @@ def run_mcraptor(
     else:
         logger.info("Destination unreachable with given parameters")
 
-    journeys = reconstruct_journeys(from_stops, destination_legs, bag_round_stop, k=rounds)
+    journeys = reconstruct_journeys(
+        from_stops, destination_legs, bag_round_stop, k=rounds
+    )
 
     return journeys
 

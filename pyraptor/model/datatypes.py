@@ -242,11 +242,11 @@ class Trip:
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
 
-    # def __hash__(self):
-    #     return hash(self.id)
+    def __hash__(self):
+        return hash(self.id)
 
-    # def __eq__(self, trip):
-    #     return same_type_and_id(self, trip)
+    def __eq__(self, trip):
+        return same_type_and_id(self, trip)
 
     def __repr__(self):
         return "Trip(hint={hint}, stop_times={stop_times}:{first_stop}-{last_stop})".format(
