@@ -115,7 +115,7 @@ class McRaptorAlgorithm:
         :param k: current round
         :param route_marked_stops: list of marked (route, stop) for evaluation
         """
-        logger.debug(f"Traverse route for round {k}")
+        logger.debug(f"Traverse routes for round {k}")
 
         new_marked_stops = []
 

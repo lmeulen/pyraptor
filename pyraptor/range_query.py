@@ -95,7 +95,7 @@ def main(
 
     # Find route between two stations for time range, i.e. Range Query
     # traveltime, final_dest, stop_bag
-    labels = run_recursive_raptor(
+    journeys_to_destinations = run_recursive_raptor(
         timetable,
         origin_station,
         dep_secs_min,
@@ -104,7 +104,7 @@ def main(
     )
 
     # All destinations are present in labels, so this is only for logging purposes
-    print_journeys(timetable, labels, destination_station=destination_station)
+    print_journeys(journeys_to_destinations, destination_station)
 
 
 def run_recursive_raptor(
@@ -155,11 +155,12 @@ def run_recursive_raptor(
         bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
 
         # Determine the best destination ID, destination is a platform
+        import pdb; pdb.set_trace()
         best_labels = bag_round_stop[rounds]
         for destination_station_name, to_stops in destination_stop_ids.items():
-            dest_id = best_stop_at_target_station(to_stops, best_labels)
-            if dest_id != 0:
-                journey = reconstruct_journey(dest_id, best_labels)
+            dest_stop = best_stop_at_target_station(to_stops, best_labels)
+            if dest_stop != 0:
+                journey = reconstruct_journey(dest_stop, best_labels)
                 last_round_journey = last_round_labels[destination_station_name]
                 last_round_labels[destination_station_name] = journey
 

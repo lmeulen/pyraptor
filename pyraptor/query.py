@@ -85,7 +85,7 @@ def main(
     logger.debug("Departure time (s.)  : " + str(dep_secs))
 
     # Find route between two stations
-    best_labels, final_dest = run_raptor(
+    journey = run_raptor(
         timetable,
         origin_station,
         destination_station,
@@ -94,9 +94,7 @@ def main(
     )
 
     # Output journey
-    if final_dest != 0:
-        journey = reconstruct_journey(final_dest, best_labels)
-        print_journey(journey, dep_secs)
+    print_journey(journey, dep_secs)
 
 
 def run_raptor(
@@ -132,7 +130,7 @@ def run_raptor(
         logger.debug("Destination code   : {} ".format(dest_stop))
         logger.info(
             "Time to destination: {:.2f} minutes".format(
-                best_labels[dest_stop].earliest_arrival_time / 60
+                (best_labels[dest_stop].earliest_arrival_time - dep_secs) / 60
             )
         )
     else:

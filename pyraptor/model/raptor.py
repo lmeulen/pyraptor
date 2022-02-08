@@ -3,16 +3,14 @@ from __future__ import annotations
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 from copy import deepcopy
-from pprint import pprint
 
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
 from pyraptor.model.datatypes import Stop, Trip, Route
 from pyraptor.util import (
-    LARGE_NUMBER,
     sec2str,
-    T24H,
+    LARGE_NUMBER,
     TRANSFER_TRIP,
     TRANSFER_COST,
 )
@@ -27,6 +25,7 @@ class Label:
     from_stop: Stop = None  # stop at which we hop-on trip with trip
 
     def update(self, earliest_arrival_time=None, trip=None, from_stop=None):
+        """Update"""
         if earliest_arrival_time is not None:
             self.earliest_arrival_time = earliest_arrival_time
         if trip is not None:
@@ -35,6 +34,7 @@ class Label:
             self.from_stop = from_stop
 
     def is_dominating(self, other: Label):
+        """Dominates other label"""
         return self.earliest_arrival_time <= other.earliest_arrival_time
 
     def __repr__(self) -> str:
@@ -51,12 +51,14 @@ class Leg:
 
     @property
     def dep(self):
+        """Departure time"""
         return [
             tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
         ][0]
 
     @property
     def arr(self):
+        """Arrival time"""
         return [
             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
         ][0]
@@ -68,6 +70,7 @@ class RaptorAlgorithm:
     def __init__(self, timetable: Timetable):
         self.timetable = timetable
         self.bag_star = None
+        self.arnhem_zuid_stops = self.timetable.stations.get("Arnhem Zuid").stops
 
     def run(self, from_stops, dep_secs, rounds) -> Dict[int, Dict[Stop, Label]]:
         """Run Round-Based Algorithm"""
@@ -89,15 +92,16 @@ class RaptorAlgorithm:
         marked_stops = []
         for from_stop in from_stops:
             bag_round_stop[0][from_stop].update(dep_secs, None, None)
+            self.bag_star[from_stop].update(dep_secs, None, None)
             marked_stops.append(from_stop)
 
         # Run rounds
         for k in range(1, rounds + 1):
-            logger.info("Analyzing possibilities round {}".format(k))
+            logger.info(f"Analyzing possibilities round {k}")
             bag_round_stop[k] = deepcopy(bag_round_stop[k - 1])
 
             # Get list of stops to evaluate in the process
-            logger.debug("Stops to evaluate count: {}".format(len(marked_stops)))
+            logger.debug(f"Stops to evaluate count: {len(marked_stops)}")
 
             # Get marked route stops
             route_marked_stops = self.accumulate_routes(marked_stops)
@@ -106,7 +110,7 @@ class RaptorAlgorithm:
             bag_round_stop, marked_trip_stops = self.traverse_routes(
                 bag_round_stop, k, route_marked_stops
             )
-            logger.debug("{} reachable stops added".format(len(marked_trip_stops)))
+            logger.debug(f"{len(marked_trip_stops)} reachable stops added")
 
             # pprint(bag_round_stop)
 
@@ -115,17 +119,17 @@ class RaptorAlgorithm:
                 bag_round_stop, k, marked_trip_stops
             )
             logger.debug(
-                "{} transferable stops added".format(len(marked_transfer_stops))
+                f"{len(marked_transfer_stops)} transferable stops added"
             )
 
             # pprint(bag_round_stop)
 
             marked_stops = set(marked_trip_stops).union(marked_transfer_stops)
-            logger.debug("{} stops to evaluate in next round".format(len(marked_stops)))
+            logger.debug(f"{len(marked_stops)} stops to evaluate in next round")
 
         return bag_round_stop
 
-    def accumulate_routes(self, marked_stops):
+    def accumulate_routes(self, marked_stops: List[Stop]) -> List[Tuple[Route, Stop]]:
         """Accumulate routes serving marked stops from previous round, i.e. Q"""
         route_marked_stops = {}  # i.e. Q
         for marked_stop in marked_stops:
@@ -157,9 +161,9 @@ class RaptorAlgorithm:
         :param k: current round
         :param route_marked_stops: list of marked (route, stop) for evaluation
         """
+        logger.debug(f"Traverse routes for round {k}")
 
         bag_round_stop = deepcopy(bag_round_stop)
-
         new_stops = []
         n_evaluations = 0
         n_improvements = 0
@@ -167,7 +171,7 @@ class RaptorAlgorithm:
         # For each route
         for (marked_route, marked_stop) in route_marked_stops:
 
-            logger.debug(f"Marked {marked_route}, {marked_stop}")
+            # logger.debug(f"Marked {marked_route}, {marked_stop}")
 
             # Current trip for this marked stop
             current_trip = None
@@ -177,10 +181,12 @@ class RaptorAlgorithm:
             remaining_stops_in_route = marked_route.stops[current_stop_index:]
             boarding_stop = None
 
-            for current_stop in remaining_stops_in_route:
+            for current_stop_index, current_stop in enumerate(remaining_stops_in_route):
+                # logger.debug(
+                #     f"Processing stop {current_stop} ({current_stop_index+1}/{len(remaining_stops_in_route)})"
+                # )
+                
                 # Can the label be improved in this round?
-
-                logger.debug(f"Traversing route: {current_stop}")
                 n_evaluations += 1
 
                 # t != _|_
@@ -193,18 +199,18 @@ class RaptorAlgorithm:
                         # Update arrival by trip, i.e.
                         #   t_k(next_stop) = t_arr(t, pi)
                         #   t_star(p_i) = t_arr(t, pi)
-                        logger.debug("Improvement")
-                        logger.debug(
-                            f"{current_stop}, current {current_trip}, boarding {boarding_stop}"
-                        )
-                        logger.debug(f"From {self.bag_star[current_stop]}")
+                        if current_stop in self.arnhem_zuid_stops:
+                            import pdb; pdb.set_trace()
+
+                        # logger.debug(f"Improvement of {current_stop}, current {current_trip}")
+                        # logger.debug(f"From {self.bag_star[current_stop]}")
                         bag_round_stop[k][current_stop].update(
                             new_arrival_time, current_trip, boarding_stop
                         )
                         self.bag_star[current_stop].update(
                             new_arrival_time, current_trip, boarding_stop
                         )
-                        logger.debug(f"To: {bag_round_stop[k][current_stop]}")
+                        # logger.debug(f"To: {bag_round_stop[k][current_stop]}")
 
                         # Logging
                         n_improvements += 1
@@ -212,17 +218,17 @@ class RaptorAlgorithm:
 
                 # Can we catch an earlier trip at p_i
                 # if tau_{k-1}(next_stop) <= tau_dep(t, next_stop)
-                previous_arrival_time = bag_round_stop[k - 1][current_stop].earliest_arrival_time
+                previous_earliest_arrival_time = bag_round_stop[k][current_stop].earliest_arrival_time
                 earliest_trip_stop_time = marked_route.earliest_trip_stop_time(
-                    previous_arrival_time, current_stop
+                    previous_earliest_arrival_time, current_stop
                 )
                 if (
                     earliest_trip_stop_time is not None
-                    and previous_arrival_time <= earliest_trip_stop_time.dts_dep
+                    and previous_earliest_arrival_time <= earliest_trip_stop_time.dts_dep
                 ):
                     current_trip = earliest_trip_stop_time.trip
                     boarding_stop = current_stop
-                    logger.debug(f"New current trip: {current_trip}, {boarding_stop}")
+                    # logger.debug(f"Set current {current_trip}, {boarding_stop}")
 
         logger.debug(f"- Evaluations    : {n_evaluations}")
         logger.debug(f"- Improvements   : {n_improvements}")
@@ -246,25 +252,27 @@ class RaptorAlgorithm:
         new_stops = []
 
         # Add in transfers to other platforms
-        for stop in marked_stops:
-            other_station_stops = [st for st in stop.station.stops if st != stop]
+        for current_stop in marked_stops:
+            other_station_stops = [st for st in current_stop.station.stops if st != current_stop]
 
-            time_sofar = bag_round_stop[k][stop].earliest_arrival_time
+            time_sofar = bag_round_stop[k][current_stop].earliest_arrival_time
             for arrive_stop in other_station_stops:
-                arrive_time_adjusted = time_sofar + self.get_transfer_time(
-                    stop, arrive_stop, time_sofar, 0
+                new_earliest_arrival = time_sofar + self.get_transfer_time(
+                    current_stop, arrive_stop, time_sofar, 0
                 )
-                previous_arrival_value = bag_round_stop[k][arrive_stop].earliest_arrival_time
+                previous_earliest_arrival = self.bag_star[arrive_stop].earliest_arrival_time
 
                 # Domination criteria
-                if arrive_time_adjusted < previous_arrival_value:
+                if new_earliest_arrival < previous_earliest_arrival:
+                    if current_stop in self.arnhem_zuid_stops:
+                        import pdb; pdb.set_trace()
                     bag_round_stop[k][arrive_stop].update(
-                        arrive_time_adjusted,
+                        new_earliest_arrival,
                         TRANSFER_TRIP,
-                        stop,
+                        current_stop,
                     )
                     self.bag_star[arrive_stop].update(
-                        arrive_time_adjusted, TRANSFER_TRIP, stop
+                        new_earliest_arrival, TRANSFER_TRIP, current_stop
                     )
                     new_stops.append(arrive_stop)
 
@@ -289,7 +297,7 @@ def best_stop_at_target_station(to_stops: List[Stop], bag: Dict[Stop, Label]) ->
     Required in order to prevent adding travel time to the arrival time.
     """
     final_stop = 0
-    distance = T24H
+    distance = LARGE_NUMBER
     for stop in to_stops:
         if bag[stop].earliest_arrival_time < distance:
             distance = bag[stop].earliest_arrival_time
@@ -299,16 +307,16 @@ def best_stop_at_target_station(to_stops: List[Stop], bag: Dict[Stop, Label]) ->
 
 def reconstruct_journey(destination: Stop, bag: Dict[Stop, Label]) -> List[Leg]:
     """Construct journey for destination from values in bag."""
-
+   
     # Create journey with list of legs
     jrny = []
-    current = destination
-    while current is not None:
-        from_stop = bag[current].from_stop
-        trip = bag[current].trip
-        leg = Leg(from_stop, current, trip)
+    to_stop = destination
+    while to_stop is not None:
+        from_stop = bag[to_stop].from_stop
+        trip = bag[to_stop].trip
+        leg = Leg(from_stop, to_stop, trip)
         jrny.append(leg)
-        current = from_stop
+        to_stop = from_stop
     jrny.reverse()
 
     # Filter transfer legs
