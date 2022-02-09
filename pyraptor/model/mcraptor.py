@@ -5,7 +5,15 @@ from copy import deepcopy
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Route, Bag, Label, Leg, Journey, pareto_set_labels
+from pyraptor.model.datatypes import (
+    Stop,
+    Route,
+    Bag,
+    Label,
+    Leg,
+    Journey,
+    pareto_set_labels,
+)
 from pyraptor.util import (
     sec2str,
     LARGE_NUMBER,
@@ -94,7 +102,7 @@ class McRaptorAlgorithm:
         bag_round_stop: Dict[int, Dict[int, Bag]],
         k: int,
         route_marked_stops: List[Tuple[Route, Stop]],
-    ) -> Tuple:
+    ) -> Tuple[Dict[int, Dict[int, Bag]], List[Stop]]:
         """
         Iterator through the stops reachable and add all new reachable stops
         by following all trips from the reached stations. Trips are only followed
@@ -132,9 +140,8 @@ class McRaptorAlgorithm:
                     else:
                         trip_stop_time = label.trip.get_stop(current_stop)
                         if trip_stop_time is not None:
-                            from_fare = label.trip.get_fare(
-                                label.from_stop
-                            )  # take fare of trip from_stop
+                            # Take fare of from_stop in trip
+                            from_fare = label.trip.get_fare(label.from_stop)
                             label.update(
                                 earliest_arrival_time=trip_stop_time.dts_arr,
                                 fare_addition=from_fare,
@@ -233,7 +240,7 @@ def best_stops_at_target_station(
     to_stops: List[Stop], last_round_bag: Dict[Stop, Bag]
 ) -> List[Leg]:
     """
-    Find the stop IDs of target station that are reached by non-dominated labels.
+    Find the stops of destinatination station that are reached by non-dominated labels.
     """
 
     # Find all labels to target_stops
@@ -266,14 +273,14 @@ def reconstruct_journeys(
     destination_legs: List[Leg],
     bag_round_stop: Dict[int, Dict[Stop, Bag]],
     k: int,
-) -> List[List[Leg]]:
+) -> List[Journey]:
     """
     Construct Journeys for destinations from bags by recursively
     looping from destination to origin.
     """
 
     # Create journeys with list of legs
-    def loop(last_round_bags: Dict[Stop, Bag], all_journeys: List[List[Leg]]):
+    def loop(last_round_bags: Dict[Stop, Bag], all_journeys: List[Journey]):
         """Create journeys as list of Legs"""
 
         for jrny in all_journeys:
@@ -306,9 +313,15 @@ def reconstruct_journeys(
     last_round_bags = bag_round_stop[k]
     journeys = [Journey(legs=[leg]) for leg in destination_legs]
     journeys = loop(last_round_bags, journeys)
-    journeys = [[leg for leg in jrny if leg.trip is not None] for jrny in journeys]
     journeys = [
-        [leg for leg in jrny if leg.from_stop.station != leg.to_stop.station]
+        Journey(
+            legs=[
+                leg
+                for leg in jrny.legs
+                if (leg.trip is not None)
+                and (leg.from_stop.station != leg.to_stop.station)
+            ]
+        )
         for jrny in journeys
     ]
 
@@ -323,6 +336,7 @@ def print_journeys(journeys: List[Journey], dep_secs=None):
 
 def print_journey(journey: Journey, dep_secs=None):
     """Print the given journey to logger info"""
+
     logger.info("Journey:")
 
     if len(journey) == 0:
@@ -331,7 +345,7 @@ def print_journey(journey: Journey, dep_secs=None):
 
     # Print all legs in journey
     for leg in journey:
-        # Stop and trip
+        # Start and end stop of leg and trip
         msg = (
             str(sec2str(leg.dep))
             + " "
@@ -349,24 +363,12 @@ def print_journey(journey: Journey, dep_secs=None):
         )
         logger.info(msg)
 
-    # Departure time of first leg
-    depart_leg = journey[0]
-    depart_stop_time = [
-        st for st in depart_leg.trip.stop_times if st.stop == depart_leg.from_stop
-    ][0]
+    logger.info(f"Fare: €{journey.fare()}")
 
-    # Arrival time of last leg
-    arrival_leg = journey[-1]
-    arrival_stop_time = [
-        st for st in arrival_leg.trip.stop_times if st.stop == arrival_leg.to_stop
-    ][0]
-
-    logger.info(f"Fare: €{arrival_leg.fare}")
-
-    msg = f"Duration: {sec2str(arrival_stop_time.dts_arr - depart_stop_time.dts_dep)}"
+    msg = f"Duration: {sec2str(journey.arr() - journey.dep())}"
     if dep_secs:
         msg += " ({} from request time {})".format(
-            sec2str(arrival_stop_time.dts_arr - dep_secs),
+            sec2str(journey.arr() - dep_secs),
             sec2str(dep_secs),
         )
     logger.info(msg)

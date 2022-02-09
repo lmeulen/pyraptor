@@ -9,8 +9,6 @@ from dataclasses import dataclass, field
 import attr
 import numpy as np
 
-from pyraptor.util import T6H
-
 
 def same_type_and_id(first, second):
     """Same type and ID"""
@@ -123,6 +121,7 @@ class Stations:
         return iter(self.set_idx.values())
 
     def add(self, station: Station):
+        """Add station"""
         if station.id in self.set_idx:
             station = self.set_idx[station.id]
         else:
@@ -130,6 +129,7 @@ class Stations:
         return station
 
     def get(self, station: Station):
+        """Get station"""
         if isinstance(station, Station):
             station = station.id
         if station not in self.set_idx:
@@ -201,25 +201,25 @@ class TripStopTimes:
         ]
         return in_window
 
-    def get_trip_stop_times_for_stop(
-        self, stop: Stop, dep_secs: int, forward: int = T6H
-    ) -> List[TripStopTime]:
-        """
-        Takes a stop and departure time and get associated trip ids.
-        The forward parameter limits the time frame starting at the departure time.
-        Times are specified in seconds since midnight.
+    # def get_trip_stop_times_for_stop(
+    #     self, stop: Stop, dep_secs: int, forward: int = T6H
+    # ) -> List[TripStopTime]:
+    #     """
+    #     Takes a stop and departure time and get associated trip ids.
+    #     The forward parameter limits the time frame starting at the departure time.
+    #     Times are specified in seconds since midnight.
 
-        :param stop_id: Stop
-        :param dep_secs: Departure time
-        :param forward: Period forward limiting trips
-        """
-        trip_stop_times = self.stop_trip_idx[stop]
-        in_window = [
-            tst
-            for tst in trip_stop_times
-            if tst.dts_dep >= dep_secs and tst.dts_dep <= dep_secs + forward
-        ]
-        return in_window
+    #     :param stop_id: Stop
+    #     :param dep_secs: Departure time
+    #     :param forward: Period forward limiting trips
+    #     """
+    #     trip_stop_times = self.stop_trip_idx[stop]
+    #     in_window = [
+    #         tst
+    #         for tst in trip_stop_times
+    #         if tst.dts_dep >= dep_secs and tst.dts_dep <= dep_secs + forward
+    #     ]
+    #     return in_window
 
     def get_earliest_trip(self, stop: Stop, dep_secs: int) -> Trip:
         """Earliest trip"""
@@ -266,6 +266,7 @@ class Trip:
         return iter(self.stop_times)
 
     def trip_stop_ids(self):
+        """Tuple of all stop ids in trip"""
         return tuple([s.stop.id for s in self.stop_times])
 
     def add_stop_time(self, stop_time: TripStopTime):
@@ -274,8 +275,8 @@ class Trip:
         assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
         self.stop_times.append(stop_time)
 
-    def get_next_trip_stop_times(self, stop_idx: int) -> List[TripStopTime]:
-        return [st for st in self.stop_times if st.stopidx > stop_idx]
+    # def get_next_trip_stop_times(self, stop_idx: int) -> List[TripStopTime]:
+    #     return [st for st in self.stop_times if st.stopidx > stop_idx]
 
     def get_stop(self, stop: Stop) -> TripStopTime:
         """Get stop"""
@@ -352,7 +353,6 @@ class Route:
     def add_stop(self, stop: Stop) -> None:
         """Add stop"""
         self.stops.append(stop)
-
         # (re)make dict to save the order of the stops in the route
         self.stop_order = {stop: index for index, stop in enumerate(self.stops)}
 
@@ -425,6 +425,7 @@ class Routes:
         return route
 
     def get_routes_of_stop(self, stop: Stop):
+        """Get routes of stop"""
         return self.stop_to_routes[stop]
 
 
@@ -436,7 +437,7 @@ class Leg:
     to_stop: Stop
     trip: Trip
     earliest_arrival_time: int
-    fare: int
+    fare: int = 0
 
     @property
     def dep(self):
@@ -478,9 +479,9 @@ class Label:
     """Label"""
 
     earliest_arrival_time: int  # earliest arrival time
-    fare: int  # total fair
+    fare: int  # total fare
     trip: Trip  # trip to take to obtain travel_time and fare
-    from_stop: Stop  # stop at which we hop-on trip with trip
+    from_stop: Stop  # stop to hop-on the trip
 
     @property
     def criteria(self):
@@ -543,12 +544,22 @@ class Journey:
         """Add leg to journey"""
         self.legs.insert(0, leg)
 
-    @property
+    def from_stop(self) -> Stop:
+        """Origin stop of Journey"""
+        return self.legs[0].from_stop
+
+    def to_stop(self) -> Stop:
+        """Destination stop of Journey"""
+        return self.legs[-1].to_stop
+
+    def fare(self) -> Stop:
+        """Total fare of Journey"""
+        return self.legs[-1].fare
+
     def dep(self):
         """Departure time"""
         return self.legs[0].dep
 
-    @property
     def arr(self):
         """Arrival time"""
         return self.legs[-1].arr

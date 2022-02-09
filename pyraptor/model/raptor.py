@@ -7,7 +7,7 @@ from copy import deepcopy
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Trip, Route
+from pyraptor.model.datatypes import Stop, Trip, Route, Leg, Journey
 from pyraptor.util import (
     sec2str,
     LARGE_NUMBER,
@@ -41,27 +41,27 @@ class Label:
         return f"Label(earliest_arrival_time={self.earliest_arrival_time}, trip={self.trip}, from_stop={self.from_stop})"
 
 
-@dataclass
-class Leg:
-    """Leg"""
+# @dataclass
+# class Leg:
+#     """Leg"""
 
-    from_stop: Stop
-    to_stop: Stop
-    trip: Trip
+#     from_stop: Stop
+#     to_stop: Stop
+#     trip: Trip
 
-    @property
-    def dep(self):
-        """Departure time"""
-        return [
-            tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
-        ][0]
+#     @property
+#     def dep(self):
+#         """Departure time"""
+#         return [
+#             tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
+#         ][0]
 
-    @property
-    def arr(self):
-        """Arrival time"""
-        return [
-            tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
-        ][0]
+#     @property
+#     def arr(self):
+#         """Arrival time"""
+#         return [
+#             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
+#         ][0]
 
 
 class RaptorAlgorithm:
@@ -307,31 +307,30 @@ def best_stop_at_target_station(to_stops: List[Stop], bag: Dict[Stop, Label]) ->
     return final_stop
 
 
-def reconstruct_journey(destination: Stop, bag: Dict[Stop, Label]) -> List[Leg]:
+def reconstruct_journey(destination: Stop, bag: Dict[Stop, Label]) -> Journey:
     """Construct journey for destination from values in bag."""
 
     # Create journey with list of legs
-    jrny = []
+    jrny = Journey()
     to_stop = destination
     while to_stop is not None:
         from_stop = bag[to_stop].from_stop
-        trip = bag[to_stop].trip
-        leg = Leg(from_stop, to_stop, trip)
-        jrny.append(leg)
+        bag_to_stop = bag[to_stop]
+        leg = Leg(
+            from_stop, to_stop, bag_to_stop.trip, bag_to_stop.earliest_arrival_time
+        )
+        jrny.prepend_leg(leg)
         to_stop = from_stop
-    jrny.reverse()
 
     # Filter transfer legs
-    reached_journey = []
-    for leg in jrny:
-        if leg.trip is not None:
-            reached_journey.append(leg)
+    reached_journey = Journey(legs=[leg for leg in jrny if leg.trip is not None])
 
     return reached_journey
 
 
-def print_journey(journey: List[Leg], dep_secs=None):
+def print_journey(journey: Journey, dep_secs=None):
     """Print the given journey to logger info"""
+
     logger.info("Journey:")
 
     if len(journey) == 0:
