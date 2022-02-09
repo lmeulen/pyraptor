@@ -9,7 +9,6 @@ from loguru import logger
 from pyraptor.dao.timetable import Timetable
 from pyraptor.model.datatypes import Stop, Trip, Route, Leg, Journey
 from pyraptor.util import (
-    sec2str,
     LARGE_NUMBER,
     TRANSFER_TRIP,
     TRANSFER_COST,
@@ -322,52 +321,9 @@ def reconstruct_journey(destination: Stop, bag: Dict[Stop, Label]) -> Journey:
         jrny.prepend_leg(leg)
         to_stop = from_stop
 
-    # Filter transfer legs
-    reached_journey = Journey(legs=[leg for leg in jrny if leg.trip is not None])
+    jrny.remove_transfer_legs()
 
-    return reached_journey
-
-
-def print_journey(journey: Journey, dep_secs=None):
-    """Print the given journey to logger info"""
-
-    logger.info("Journey:")
-
-    if len(journey) == 0:
-        logger.info("No journey available")
-        return
-
-    # Print all legs in journey
-    for leg in journey:
-        # Stop and trip
-        msg = (
-            str(sec2str(leg.dep))
-            + " "
-            + leg.from_stop.station.name.ljust(20)
-            + "(p. "
-            + str(leg.from_stop.platform_code).rjust(3)
-            + ") TO "
-            + str(sec2str(leg.arr))
-            + " "
-            + leg.to_stop.station.name.ljust(20)
-            + "(p. "
-            + str(leg.to_stop.platform_code).rjust(3)
-            + ") WITH "
-            + str(leg.trip.hint)
-        )
-        logger.info(msg)
-
-    # Departure time of first leg and arrival time of last leg
-    depart_stop_time = journey[0].dep
-    arrival_stop_time = journey[-1].arr
-
-    msg = "Duration : {}".format(sec2str(arrival_stop_time - depart_stop_time))
-    if dep_secs:
-        msg += " ({} from request time {})".format(
-            sec2str(arrival_stop_time - dep_secs),
-            sec2str(dep_secs),
-        )
-    logger.info(msg)
+    return jrny
 
 
 def is_dominated(original_journey: List[Leg], new_journey: List[Leg]) -> bool:

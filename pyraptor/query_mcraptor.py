@@ -5,11 +5,11 @@ from copy import copy
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable, read_timetable
+from pyraptor.model.base import print_journeys
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     reconstruct_journeys,
-    best_stops_at_target_station,
-    print_journeys,
+    best_legs_to_destination_station,
 )
 from pyraptor.util import str2sec
 
@@ -125,13 +125,17 @@ def run_mcraptor(
 
     # Determine the best destination ID, destination is a platform
     last_round_bag = copy(bag_round_stop[rounds])
-    destination_legs = best_stops_at_target_station(to_stops, last_round_bag)
+    destination_legs = best_legs_to_destination_station(to_stops, last_round_bag)
 
     if len(destination_legs) != 0:
-        logger.debug("Destination leg(s): {} ".format(destination_legs))
+        logger.debug("Destination leg(s):")
+        for leg in destination_legs:
+            logger.debug(f"> {leg}")
     else:
         logger.info("Destination unreachable with given parameters")
-
+    
+    import pdb; pdb.set_trace()
+    
     journeys = reconstruct_journeys(
         from_stops, destination_legs, bag_round_stop, k=rounds
     )

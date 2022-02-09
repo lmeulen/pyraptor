@@ -5,9 +5,12 @@ from collections import defaultdict
 from operator import attrgetter
 from typing import List, Dict, Tuple
 from dataclasses import dataclass, field
+from copy import deepcopy
 
 import attr
 import numpy as np
+
+from pyraptor.util import LARGE_NUMBER
 
 
 def same_type_and_id(first, second):
@@ -33,8 +36,8 @@ class Stop:
 
     def __repr__(self):
         if self.id == self.name:
-            return "<Stop {}>".format(self.id)
-        return "<Stop {} [{}]>".format(self.name, self.id)
+            return "Stop({})".format(self.id)
+        return "Stop({} [{}])".format(self.name, self.id)
 
 
 class Stops:
@@ -65,6 +68,7 @@ class Stops:
         return stop
 
     def get_by_index(self, stop_index) -> Stop:
+        """Get stop by index"""
         return self.set_index[stop_index]
 
     def add(self, stop):
@@ -95,8 +99,8 @@ class Station:
 
     def __repr__(self):
         if self.id == self.name:
-            return "<Station {}>".format(self.id)
-        return "<Station {} [{}]>".format(self.name, self.id)
+            return "Station({})".format(self.id)
+        return "Station({} [{}])>".format(self.name, self.id)
 
     def add_stop(self, stop: Stop):
         self.stops.append(stop)
@@ -201,26 +205,6 @@ class TripStopTimes:
         ]
         return in_window
 
-    # def get_trip_stop_times_for_stop(
-    #     self, stop: Stop, dep_secs: int, forward: int = T6H
-    # ) -> List[TripStopTime]:
-    #     """
-    #     Takes a stop and departure time and get associated trip ids.
-    #     The forward parameter limits the time frame starting at the departure time.
-    #     Times are specified in seconds since midnight.
-
-    #     :param stop_id: Stop
-    #     :param dep_secs: Departure time
-    #     :param forward: Period forward limiting trips
-    #     """
-    #     trip_stop_times = self.stop_trip_idx[stop]
-    #     in_window = [
-    #         tst
-    #         for tst in trip_stop_times
-    #         if tst.dts_dep >= dep_secs and tst.dts_dep <= dep_secs + forward
-    #     ]
-    #     return in_window
-
     def get_earliest_trip(self, stop: Stop, dep_secs: int) -> Trip:
         """Earliest trip"""
         trip_stop_times = self.stop_trip_idx[stop]
@@ -249,11 +233,9 @@ class Trip:
         return same_type_and_id(self, trip)
 
     def __repr__(self):
-        return "Trip(hint={hint}, stop_times={stop_times}:{first_stop}-{last_stop})".format(
+        return "Trip(hint={hint}, stop_times={stop_times})".format(
             hint=self.hint if self.hint is not None else self.id,
             stop_times=len(self.stop_times),
-            first_stop=self.stop_times[0].stop.id,
-            last_stop=self.stop_times[-1].stop.id,
         )
 
     def __getitem__(self, n):
@@ -274,9 +256,6 @@ class Trip:
         assert stop_time.dts_arr <= stop_time.dts_dep
         assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
         self.stop_times.append(stop_time)
-
-    # def get_next_trip_stop_times(self, stop_idx: int) -> List[TripStopTime]:
-    #     return [st for st in self.stop_times if st.stopidx > stop_idx]
 
     def get_stop(self, stop: Stop) -> TripStopTime:
         """Get stop"""
@@ -466,9 +445,10 @@ def pareto_set_labels(labels: List[Label]):
     for i, label in enumerate(labels_criteria):
         if is_efficient[i]:
             # Keep any point with a lower cost
+            # and keep labels with equal criteria (but with possibly different trips/from_stops)
             is_efficient[is_efficient] = np.any(
                 labels_criteria[is_efficient] < label, axis=1
-            )
+            ) #+ np.all(labels_criteria[is_efficient] == label, axis=1)
             is_efficient[i] = True  # And keep self
 
     return [labels for i, labels in enumerate(labels) if is_efficient[i]]
@@ -488,12 +468,20 @@ class Label:
         """Criteria"""
         return [self.earliest_arrival_time, self.fare]
 
-    def update(self, earliest_arrival_time=None, fare_addition=None):
+    def update(self, earliest_arrival_time=None, fare_addition=None, trip=None):
         """Update earliest arrival time and add fare_addition to fare"""
         if earliest_arrival_time is not None:
             self.earliest_arrival_time = earliest_arrival_time
         if fare_addition is not None:
             self.fare += fare_addition
+        if trip is not None:
+            self.trip = None
+
+    def set_infinite(self):
+        """Makes label dominated by any other label"""
+        self.update(
+            earliest_arrival_time=LARGE_NUMBER, fare_addition=LARGE_NUMBER, trip=None
+        )
 
 
 @dataclass
@@ -513,8 +501,12 @@ class Bag:
 
     def merge(self, bag: Bag) -> None:
         """Merge"""
-        self.labels.extend(bag.labels)
+        self.labels.extend(deepcopy(bag).labels)
         self.labels = pareto_set_labels(self.labels)
+
+    def labels_with_trip(self):
+        """All labels with trips, i.e. all labels that are reachable with a trip with given criterion"""
+        return [l for l in self.labels if l.trip is not None]
 
     def earliest_arrival(self) -> int:
         """Earliest arrival"""
@@ -526,6 +518,7 @@ class Journey:
     """
     Journey from origin to destination specified as Legs
     """
+
     legs: List[Leg] = field(default_factory=list)
 
     def __len__(self):
@@ -543,6 +536,14 @@ class Journey:
     def prepend_leg(self, leg: Leg):
         """Add leg to journey"""
         self.legs.insert(0, leg)
+
+    def remove_transfer_legs(self):
+        """Remove all transfer legs"""
+        self.legs = [
+            leg
+            for leg in self.legs
+            if (leg.trip is not None) and (leg.from_stop.station != leg.to_stop.station)
+        ]
 
     def from_stop(self) -> Stop:
         """Origin stop of Journey"""

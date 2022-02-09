@@ -1,6 +1,7 @@
 """Test Query McRaptor"""
 from pyraptor import query_mcraptor
-from pyraptor.model.mcraptor import print_journeys, pareto_set_labels
+from pyraptor.model.base import print_journeys
+from pyraptor.model.mcraptor import pareto_set_labels
 from pyraptor.model.datatypes import Stop, Label
 
 
@@ -17,7 +18,7 @@ def test_run_mcraptor(timetable_with_transfers_and_fares):
 
     origin_station = "8400002"
     destination_station = "8400004"
-    departure_time = 2
+    departure_time = 2*600
     rounds = 2
 
     # Find route between two stations
@@ -38,23 +39,35 @@ def test_pareto_set_labels():
     """test creating pareto set"""
 
     stop = Stop(1, 1, "UT", "13")
+    stop2 = Stop(1, 1, "HR", "1")
 
-    l1 = Label(1, 6, 0, stop)
-    l2 = Label(3, 4, 0, stop)
-    l3 = Label(5, 1, 0, stop)
-    l4 = Label(3, 5, 0, stop)
-    l5 = Label(5, 3, 0, stop)
-    l6 = Label(6, 1, 0, stop)
+    label_0 = Label(1, 6, 0, stop)
+    label_1 = Label(1, 6, 0, stop2)
+    label_2 = Label(3, 4, 0, stop)
+    label_3 = Label(5, 1, 0, stop)
+    label_4 = Label(3, 5, 0, stop)
+    label_5 = Label(5, 3, 0, stop)
+    label_6 = Label(6, 1, 0, stop)
     labels = pareto_set_labels(
         [
-            l1,
-            l2,
-            l3,
-            l4,
-            l5,
-            l6,
+            label_0,
+            label_1,
+            label_2,
+            label_3,
+            label_4,
+            label_5,
+            label_6,
         ]
     )
-    expected = [l1, l2, l3]
-
+    expected = [label_0, label_1, label_2, label_3]
+    import pdb; pdb.set_trace()
     assert labels == expected
+
+
+# TODO: 
+# Test Vlissingen - Heerenven
+# VS - RSD (roosendaal) - ZL - HR
+# VS - RTD - ZL - HR
+# dezelfde trein ZL - HR, maar mogelijk verschil in overstap tijden.
+# Willen beide opties. Krijgen we deze ook?
+

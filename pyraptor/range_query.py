@@ -5,12 +5,12 @@ from typing import Dict
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable, read_timetable
+from pyraptor.model.base import print_journey
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
     best_stop_at_target_station,
     reconstruct_journey,
     is_dominated,
-    print_journey,
 )
 from pyraptor.util import str2sec, sec2str
 

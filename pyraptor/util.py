@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 
-TRANSFER_COST = 3 * 60  # Default transfer time is 3 minutes
+TRANSFER_COST = 2 * 60  # Default transfer time is 3 minutes
 T3M = 3 * 60
 T1H = 1 * 60 * 60
 T6H = 6 * 60 * 60

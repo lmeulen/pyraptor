@@ -2,6 +2,8 @@
 from typing import List, Tuple, Dict
 from copy import deepcopy
 
+from pdb import set_trace
+
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
@@ -15,8 +17,6 @@ from pyraptor.model.datatypes import (
     pareto_set_labels,
 )
 from pyraptor.util import (
-    sec2str,
-    LARGE_NUMBER,
     TRANSFER_COST,
     TRANSFER_TRIP,
 )
@@ -39,7 +39,7 @@ class McRaptorAlgorithm:
                 bag_round_stop[k][p] = Bag()
 
         # Add origin stops to bag
-        logger.debug("Starting from Stop IDs: {}".format(str(from_stops)))
+        logger.debug(f"Starting from Stop IDs: {str(from_stops)}")
 
         # Initialize bag for round 0, i.e. add Labels with criterion 0 for all from stops
         for from_stop in from_stops:
@@ -124,48 +124,50 @@ class McRaptorAlgorithm:
             marked_stop_index = marked_route.stop_index(marked_stop)
             remaining_stops_in_route = marked_route.stops[marked_stop_index:]
 
-            for current_stop in remaining_stops_in_route:
+            for stop_idx, current_stop in enumerate(remaining_stops_in_route):
 
                 # Mark stop
                 if current_stop != marked_stop and current_stop not in new_marked_stops:
                     new_marked_stops.append(current_stop)
 
                 # Step 1: update earliest arrival times and criteria for each label L in route-bag
-                for label in route_bag.labels:
-                    if label.trip is None:
+                for label in route_bag.labels_with_trip():
+                    trip_stop_time = label.trip.get_stop(current_stop)
+                    if trip_stop_time is not None:
+                        # Take fare of previous stop in trip as fare is defined on start
+                        previous_stop = remaining_stops_in_route[stop_idx - 1]
+                        from_fare = label.trip.get_fare(previous_stop)
+
                         label.update(
-                            earliest_arrival_time=LARGE_NUMBER,
-                            fare_addition=LARGE_NUMBER,
+                            earliest_arrival_time=trip_stop_time.dts_arr,
+                            fare_addition=from_fare,
                         )
                     else:
-                        trip_stop_time = label.trip.get_stop(current_stop)
-                        if trip_stop_time is not None:
-                            # Take fare of from_stop in trip
-                            from_fare = label.trip.get_fare(label.from_stop)
-                            label.update(
-                                earliest_arrival_time=trip_stop_time.dts_arr,
-                                fare_addition=from_fare,
-                            )
-                        else:
-                            label.update(
-                                earliest_arrival_time=LARGE_NUMBER,
-                                fare_addition=LARGE_NUMBER,
-                            )
+                        # Make label unusable as current_stop is not in trip
+                        label.set_infinite()
 
                 # Step 2: merge bag_route into bag_round_stop and remove dominated labels
-                bag_round_stop[k][current_stop].merge(deepcopy(route_bag))
+                # The label contains the trip with which one arrives at current stop with k legs
+                # and we boarded the trip at from_stop.
+                bag_round_stop[k][current_stop].merge(route_bag)
 
                 # Step 3: merge B_{k-1}(p) into B_r
-                route_bag.merge(deepcopy(bag_round_stop[k - 1][current_stop]))
+                route_bag.merge(bag_round_stop[k - 1][current_stop])
+                # set_trace()
 
                 # Assign trips to all newly added labels in route_bag
+                # This is the trip on which we 'hop-on'
                 for label in route_bag.labels:
                     earliest_trip = marked_route.earliest_trip(
                         label.earliest_arrival_time, current_stop
                     )
-                    if earliest_trip is not None:
+                    if earliest_trip is not None:  #  and label.trip != earliest_trip:
+                        # Update label with earliest trip in route leaving from this station
                         label.trip = earliest_trip
                         label.from_stop = current_stop
+                    else:
+                        # Make label unusable as there is no trip leaving from this stop
+                        label.set_infinite()
 
         return bag_round_stop, new_marked_stops
 
@@ -180,6 +182,7 @@ class McRaptorAlgorithm:
         logger.debug("Add transfer times...")
 
         marked_stops_transfers = []
+        # import pdb; pdb.set_trace()
 
         # Add in transfers to other platforms
         for stop in marked_stops:
@@ -197,22 +200,19 @@ class McRaptorAlgorithm:
                         )
                     )
                     # Find earliest trip at other stop
-                    earliest_trip = self.timetable.trip_stop_times.get_earliest_trip(
-                        other_stop, transfer_arrival_time
+                    # earliest_trip = self.timetable.trip_stop_times.get_earliest_trip(
+                    #     other_stop, transfer_arrival_time
+                    # )
+                    # if earliest_trip is not None:
+                    # Update label with new earliest arrival time at other_stop
+                    label.update(
+                        earliest_arrival_time=transfer_arrival_time,
                     )
-                    if earliest_trip is not None:
-                        # Update label
-                        label.update(
-                            earliest_arrival_time=transfer_arrival_time,
-                        )
-                        label.trip = earliest_trip
-                        label.from_stop = stop
-                    else:
-                        # We update the bag in the next step so we need to set earliest arrival time to INF
-                        label.update(
-                            earliest_arrival_time=LARGE_NUMBER,
-                            fare_addition=LARGE_NUMBER,
-                        )
+                    label.from_stop = stop
+                    # label.trip = earliest_trip  # Seems redundant
+                    # else:
+                    #     # We update the bag in the next step so we need to set earliest arrival time to INF
+                    #     label.set_infinite()
 
                 # Merg temp bag into B_k(p_j)
                 bag_round_stop[k][other_stop].merge(temp_bag)
@@ -236,11 +236,11 @@ class McRaptorAlgorithm:
         return TRANSFER_COST
 
 
-def best_stops_at_target_station(
+def best_legs_to_destination_station(
     to_stops: List[Stop], last_round_bag: Dict[Stop, Bag]
 ) -> List[Leg]:
     """
-    Find the stops of destinatination station that are reached by non-dominated labels.
+    Find the last legs to destination station that are reached by non-dominated labels.
     """
 
     # Find all labels to target_stops
@@ -288,6 +288,7 @@ def reconstruct_journeys(
 
             # End of journey
             if current_leg.trip is None or current_leg.from_stop in from_stops:
+                jrny.remove_transfer_legs()
                 yield jrny
                 continue
 
@@ -312,63 +313,6 @@ def reconstruct_journeys(
 
     last_round_bags = bag_round_stop[k]
     journeys = [Journey(legs=[leg]) for leg in destination_legs]
-    journeys = loop(last_round_bags, journeys)
-    journeys = [
-        Journey(
-            legs=[
-                leg
-                for leg in jrny.legs
-                if (leg.trip is not None)
-                and (leg.from_stop.station != leg.to_stop.station)
-            ]
-        )
-        for jrny in journeys
-    ]
+    journeys = [jrny for jrny in loop(last_round_bags, journeys)]
 
     return journeys
-
-
-def print_journeys(journeys: List[Journey], dep_secs=None):
-    """Print list of journeys"""
-    for jrny in journeys:
-        print_journey(jrny, dep_secs)
-
-
-def print_journey(journey: Journey, dep_secs=None):
-    """Print the given journey to logger info"""
-
-    logger.info("Journey:")
-
-    if len(journey) == 0:
-        logger.info("No journey available")
-        return
-
-    # Print all legs in journey
-    for leg in journey:
-        # Start and end stop of leg and trip
-        msg = (
-            str(sec2str(leg.dep))
-            + " "
-            + leg.from_stop.station.name.ljust(20)
-            + "(p. "
-            + str(leg.from_stop.platform_code).rjust(3)
-            + ") TO "
-            + str(sec2str(leg.arr))
-            + " "
-            + leg.to_stop.station.name.ljust(20)
-            + "(p. "
-            + str(leg.to_stop.platform_code).rjust(3)
-            + ") WITH "
-            + str(leg.trip.hint)
-        )
-        logger.info(msg)
-
-    logger.info(f"Fare: €{journey.fare()}")
-
-    msg = f"Duration: {sec2str(journey.arr() - journey.dep())}"
-    if dep_secs:
-        msg += " ({} from request time {})".format(
-            sec2str(journey.arr() - dep_secs),
-            sec2str(dep_secs),
-        )
-    logger.info(msg)
