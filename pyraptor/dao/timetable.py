@@ -28,7 +28,8 @@ def read_timetable(input_folder: str) -> Timetable:
 
     if not os.path.exists(input_folder):
         raise IOError(
-            "PyRaptor timetable not found. Run `pyraptor/gtfs/timetable.py` first to create timetable from GTFS files."
+            "PyRaptor timetable not found. Run `python pyraptor/gtfs/timetable.py`"
+            " first to create timetable from GTFS files."
         )
 
     logger.debug("Using cached datastructures")

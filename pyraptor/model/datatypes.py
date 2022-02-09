@@ -518,3 +518,37 @@ class Bag:
     def earliest_arrival(self) -> int:
         """Earliest arrival"""
         return min([self.labels[i].earliest_arrival_time for i in range(len(self))])
+
+
+@dataclass
+class Journey:
+    """
+    Journey from origin to destination specified as Legs
+    """
+    legs: List[Leg] = field(default_factory=list)
+
+    def __len__(self):
+        return len(self.legs)
+
+    def __repr__(self):
+        return f"Journey(n_legs={len(self.legs)})"
+
+    def __getitem__(self, index):
+        return self.legs[index]
+
+    def __iter__(self):
+        return iter(self.legs)
+
+    def prepend_leg(self, leg: Leg):
+        """Add leg to journey"""
+        self.legs.insert(0, leg)
+
+    @property
+    def dep(self):
+        """Departure time"""
+        return self.legs[0].dep
+
+    @property
+    def arr(self):
+        """Arrival time"""
+        return self.legs[-1].arr
