@@ -5,7 +5,7 @@ from pyraptor.model.mcraptor import pareto_set_labels
 from pyraptor.model.datatypes import Stop, Label
 
 
-def test_run_mcraptor(timetable_with_transfers_and_fares):
+def test_run_mcraptor_with_transfers_and_fares(timetable_with_transfers_and_fares):
     """Test run mcraptor"""
 
     # Run McRaptor for the query starting at s2 and going to s4
@@ -18,8 +18,8 @@ def test_run_mcraptor(timetable_with_transfers_and_fares):
 
     origin_station = "8400002"
     destination_station = "8400004"
-    departure_time = 2*600
-    rounds = 2
+    departure_time = 1200
+    rounds = 4
 
     # Find route between two stations
     journeys = query_mcraptor.run_mcraptor(
@@ -29,45 +29,63 @@ def test_run_mcraptor(timetable_with_transfers_and_fares):
         departure_time,
         rounds,
     )
-    # pprint(bag_round_stop)
     print_journeys(journeys, departure_time)
 
-    assert len(journeys) == 2, "should have 2 journeys"
+    # assert len(journeys) == 2, "should have 2 journeys"
 
 
-def test_pareto_set_labels():
-    """test creating pareto set"""
+def test_run_mcraptor_many_transfers(timetable_with_many_transfers):
+    """Test run mcraptor"""
 
-    stop = Stop(1, 1, "UT", "13")
-    stop2 = Stop(1, 1, "HR", "1")
+    origin_station = "8400004"
+    destination_station = "8400014"
+    departure_time = 0
+    rounds = 4
 
-    label_0 = Label(1, 6, 0, stop)
-    label_1 = Label(1, 6, 0, stop2)
-    label_2 = Label(3, 4, 0, stop)
-    label_3 = Label(5, 1, 0, stop)
-    label_4 = Label(3, 5, 0, stop)
-    label_5 = Label(5, 3, 0, stop)
-    label_6 = Label(6, 1, 0, stop)
-    labels = pareto_set_labels(
-        [
-            label_0,
-            label_1,
-            label_2,
-            label_3,
-            label_4,
-            label_5,
-            label_6,
-        ]
+    # Find route between two stations
+    journeys = query_mcraptor.run_mcraptor(
+        timetable_with_many_transfers,
+        origin_station,
+        destination_station,
+        departure_time,
+        rounds,
     )
-    expected = [label_0, label_1, label_2, label_3]
-    import pdb; pdb.set_trace()
-    assert labels == expected
+    print_journeys(journeys, departure_time)
+
+    # assert len(journeys) == 2, "should have 2 journeys"
 
 
-# TODO: 
-# Test Vlissingen - Heerenven
-# VS - RSD (roosendaal) - ZL - HR
-# VS - RTD - ZL - HR
-# dezelfde trein ZL - HR, maar mogelijk verschil in overstap tijden.
-# Willen beide opties. Krijgen we deze ook?
+# def test_pareto_set_labels():
+#     """test creating pareto set"""
 
+#     stop = Stop(1, 1, "UT", "13")
+#     stop2 = Stop(1, 1, "HR", "1")
+
+#     label_0 = Label(1, 6, 0, stop)
+#     label_1 = Label(1, 6, 0, stop2)
+#     label_2 = Label(3, 4, 0, stop)
+#     label_3 = Label(5, 1, 0, stop)
+#     label_4 = Label(3, 5, 0, stop)
+#     label_5 = Label(5, 3, 0, stop)
+#     label_6 = Label(6, 1, 0, stop)
+#     labels = pareto_set_labels(
+#         [
+#             label_0,
+#             label_1,
+#             label_2,
+#             label_3,
+#             label_4,
+#             label_5,
+#             label_6,
+#         ]
+#     )
+#     expected = [label_0, label_1, label_2, label_3]
+#     assert labels == expected
+
+
+# # TODO: 
+# # Test Vlissingen - Heerenven
+# # VS - RSD (roosendaal) - ZL - HR
+# # VS - RTD - ZL - HR
+# # dezelfde trein ZL - HR, maar mogelijk verschil in overstap tijden.
+# # Willen beide opties. Krijgen we deze ook?

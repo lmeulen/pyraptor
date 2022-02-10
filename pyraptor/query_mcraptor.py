@@ -133,9 +133,7 @@ def run_mcraptor(
             logger.debug(f"> {leg}")
     else:
         logger.info("Destination unreachable with given parameters")
-    
-    import pdb; pdb.set_trace()
-    
+
     journeys = reconstruct_journeys(
         from_stops, destination_legs, bag_round_stop, k=rounds
     )

@@ -28,6 +28,8 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 `python pyraptor/query_mcraptor.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00" -r 2`
 
+`python pyraptor/query_mcraptor.py -i output/timetable -or "Vlissingen" -d "Akkrum" -t "08:30:00" -r 4`
+
 # Notes
 
 - The current version doesn't implement target pruning as we are interested in querying all targets at once and performance is sufficient already.

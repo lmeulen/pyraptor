@@ -36,6 +36,14 @@ def timetable_with_transfers_and_fares() -> Timetable:
     return timetable_
 
 
+@pytest.fixture(scope="session")
+def timetable_with_many_transfers() -> Timetable:
+    """Timetable with fares"""
+    stops, stop_times, trips = get_stop_times_with_many_transfers()
+    timetable_ = to_timetable(stops, stop_times, trips)
+    return timetable_
+
+
 def get_default_data():
     """Get default data for timetable"""
 
@@ -322,3 +330,98 @@ def get_stop_times_with_transfers_and_fare():
     ].drop_duplicates()
 
     return stops, stop_times, trips
+
+
+def get_stop_times_with_many_transfers():
+    """Create timetable where it is possible to reach destination faster with many transfers"""
+    traffic_date = datetime.date(2021, 10, 21)
+
+    stops = pd.DataFrame(
+        {
+            "stop_uic": [f"{i+8400000}" for i in [4]*2 + [5,6] + [7]*2 + [8]*2 + [9] + [10] + [11] + [12] + [14]],
+            "stop_id": [
+                # "st1_sp1",
+                # "st2_sp1", "st2_sp2",
+                # "st3_sp1",
+                "st4_sp1", "st4_sp2",
+                "st5_sp1",
+                "st6_sp1",
+                "st7_sp1", "st7_sp2",
+                "st8_sp1", "st8_sp2",
+                "st9_sp1",
+                "st10_sp1",
+                "st11_sp1",
+                "st12_sp1",
+                "st14_sp1",
+            ]
+        }
+    )
+    stops["parent_stop_id"] = stops["stop_id"].apply(lambda x: x[:-4])
+
+    trip1 = pd.DataFrame(
+        {
+            "verkeersdatum_ams": [traffic_date] * 4,
+            "treinnummer": [101] * 4,
+            "toeslag": [0] * 4,
+            "stop_id": ["st4_sp1", "st5_sp1", "st6_sp1", "st7_sp1"],
+            "vertrekmoment_utc": range(4, 17, 4),
+            "vervoerstrajectindex": range(1, 5),
+            "trip_id": [1] * 4,
+        }
+    )
+    trip3 = pd.DataFrame(
+        {
+            "verkeersdatum_ams": [traffic_date] * 3,
+            "treinnummer": [301] * 3,
+            "toeslag": [0] * 3,
+            "stop_id": ["st9_sp1", "st5_sp1", "st10_sp1"],
+            "vertrekmoment_utc": range(8, 11),
+            "vervoerstrajectindex": range(1, 4),
+            "trip_id": [3] * 3,
+        }
+    )
+    trip4 = pd.DataFrame(
+        {
+            "verkeersdatum_ams": [traffic_date] * 3,
+            "treinnummer": [401] * 3,
+            "toeslag": [0]*3,
+            "stop_id": ["st10_sp1", "st11_sp1", "st12_sp1"],
+            "vertrekmoment_utc": range(11, 14),
+            "vervoerstrajectindex": range(1, 4),
+            "trip_id": [4] * 3,
+        }
+    )
+    trip5 = pd.DataFrame(
+        {
+            "verkeersdatum_ams": [traffic_date] * 2,
+            "treinnummer": [501] * 2,
+            "toeslag": [0]*2,
+            "stop_id": ["st12_sp1", "st7_sp1"],
+            "vertrekmoment_utc": range(14, 16),
+            "vervoerstrajectindex": range(1, 3),
+            "trip_id": [5] * 2,
+        }
+    )
+    trip7 = pd.DataFrame(
+        {
+            "verkeersdatum_ams": [traffic_date] * 3,
+            "treinnummer": [701] * 3,
+            "toeslag": [0]*3,
+            "stop_id": ["st10_sp1", "st7_sp1", "st14_sp1"],
+            "vertrekmoment_utc": range(16, 19),
+            "vervoerstrajectindex": range(1, 4),
+            "trip_id": [7] * 3,
+        }
+    )
+
+    stop_times = pd.concat([trip1, trip3, trip4, trip5, trip7], axis=0, ignore_index=True)
+    stop_times["vertrekmoment_utc"] *= 3600
+    stop_times["aankomstmoment_utc"] = stop_times["vertrekmoment_utc"]
+    trips = stop_times[
+        ["verkeersdatum_ams", "treinnummer", "trip_id", "toeslag"]
+    ].drop_duplicates()
+
+    return stops, stop_times, trips
+
+# To do: treinnummers die aan elkaar gekoppeld zijn. Dus wel verandering in trip, maar rzg hoeft niet over te stappen. Dus geen transfertime.
+

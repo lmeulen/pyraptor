@@ -417,6 +417,11 @@ class Leg:
     trip: Trip
     earliest_arrival_time: int
     fare: int = 0
+    n_trips: int = 0
+
+    @property
+    def criteria(self):
+        return [self.earliest_arrival_time, self.fare, self.n_trips]
 
     @property
     def dep(self):
@@ -431,6 +436,28 @@ class Leg:
         return [
             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
         ][0]
+
+    def is_compatible_before(self, other_leg: Leg):
+        """
+        Check if Leg is allowed before another leg. That is,
+        - its possible to go form current leg to other leg concerning arrival time
+        - number of trips of current leg differs by 1 if the trip of the other leg differs and is
+        0 when the trip is equal.
+        - the accumulated value of a criteria of current leg is larger or equal to the accumulated value of the other leg
+        (current leg is instance of this class)
+        """
+        arrival_time_compatible = (
+            other_leg.earliest_arrival_time >= self.earliest_arrival_time
+        )
+        n_trips_compatible = other_leg.n_trips > self.n_trips
+        criteria_compatible = np.all(
+            np.array([c for c in other_leg.criteria])
+            >= np.array([c for c in self.criteria])
+        )
+        # TODO
+        # - transfer trips are ok if same station
+
+        return all([arrival_time_compatible, n_trips_compatible, criteria_compatible])
 
 
 def pareto_set_labels(labels: List[Label]):
@@ -448,7 +475,7 @@ def pareto_set_labels(labels: List[Label]):
             # and keep labels with equal criteria (but with possibly different trips/from_stops)
             is_efficient[is_efficient] = np.any(
                 labels_criteria[is_efficient] < label, axis=1
-            ) #+ np.all(labels_criteria[is_efficient] == label, axis=1)
+            )  # + np.all(labels_criteria[is_efficient] == label, axis=1)
             is_efficient[i] = True  # And keep self
 
     return [labels for i, labels in enumerate(labels) if is_efficient[i]]
@@ -462,26 +489,34 @@ class Label:
     fare: int  # total fare
     trip: Trip  # trip to take to obtain travel_time and fare
     from_stop: Stop  # stop to hop-on the trip
+    n_trips: int = 0  # number of trips
 
     @property
     def criteria(self):
         """Criteria"""
-        return [self.earliest_arrival_time, self.fare]
+        return [self.earliest_arrival_time, self.fare, self.n_trips]
 
-    def update(self, earliest_arrival_time=None, fare_addition=None, trip=None):
+    def update(self, earliest_arrival_time=None, fare_addition=None):
         """Update earliest arrival time and add fare_addition to fare"""
         if earliest_arrival_time is not None:
             self.earliest_arrival_time = earliest_arrival_time
         if fare_addition is not None:
             self.fare += fare_addition
-        if trip is not None:
-            self.trip = None
+
+    def update_trip(self, trip: Trip):
+        """Update trip"""
+        if self.trip != trip:
+            self.n_trips += 1
+        self.trip = trip
 
     def set_infinite(self):
         """Makes label dominated by any other label"""
         self.update(
-            earliest_arrival_time=LARGE_NUMBER, fare_addition=LARGE_NUMBER, trip=None
+            earliest_arrival_time=LARGE_NUMBER,
+            fare_addition=LARGE_NUMBER,
         )
+        self.trip = None
+        self.n_trips = LARGE_NUMBER
 
 
 @dataclass
@@ -494,6 +529,9 @@ class Bag:
 
     def __len__(self):
         return len(self.labels)
+
+    def __repr__(self):
+        return f"Bag({self.labels})"
 
     def add(self, label: Label):
         """Add"""
@@ -532,6 +570,11 @@ class Journey:
 
     def __iter__(self):
         return iter(self.legs)
+
+    def number_of_trips(self):
+        """Return number of distinct trips"""
+        trips = set([l.trip for l in self.legs])
+        return len(trips)
 
     def prepend_leg(self, leg: Leg):
         """Add leg to journey"""

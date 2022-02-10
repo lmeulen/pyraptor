@@ -1,7 +1,7 @@
 """McRAPTOR algorithm"""
 from typing import List, Tuple, Dict
 from copy import deepcopy
-
+from pprint import pprint
 from pdb import set_trace
 
 from loguru import logger
@@ -151,9 +151,10 @@ class McRaptorAlgorithm:
                 # and we boarded the trip at from_stop.
                 bag_round_stop[k][current_stop].merge(route_bag)
 
+                # TODO: Don't mark stops if no improvement
+
                 # Step 3: merge B_{k-1}(p) into B_r
                 route_bag.merge(bag_round_stop[k - 1][current_stop])
-                # set_trace()
 
                 # Assign trips to all newly added labels in route_bag
                 # This is the trip on which we 'hop-on'
@@ -161,10 +162,12 @@ class McRaptorAlgorithm:
                     earliest_trip = marked_route.earliest_trip(
                         label.earliest_arrival_time, current_stop
                     )
-                    if earliest_trip is not None:  #  and label.trip != earliest_trip:
+                    if earliest_trip is not None:
                         # Update label with earliest trip in route leaving from this station
-                        label.trip = earliest_trip
-                        label.from_stop = current_stop
+                        if label.trip != earliest_trip: 
+                            # if trip is different we hop-on the trip at current_stop
+                            label.from_stop = current_stop
+                        label.update_trip(earliest_trip)                        
                     else:
                         # Make label unusable as there is no trip leaving from this stop
                         label.set_infinite()
@@ -248,6 +251,7 @@ def best_legs_to_destination_station(
         (stop, label) for stop in to_stops for label in last_round_bag[stop].labels
     ]
 
+    # TODO: Use merge function on Bag
     # Pareto optimal labels
     pareto_optimal_labels = pareto_set_labels([label for (_, label) in best_labels])
     pareto_optimal_labels = [
@@ -262,6 +266,7 @@ def best_legs_to_destination_station(
             label.trip,
             label.earliest_arrival_time,
             label.fare,
+            label.n_trips,
         )
         for (to_stop, label) in pareto_optimal_labels
     ]
@@ -279,40 +284,41 @@ def reconstruct_journeys(
     looping from destination to origin.
     """
 
-    # Create journeys with list of legs
-    def loop(last_round_bags: Dict[Stop, Bag], all_journeys: List[Journey]):
+    def loop(
+        bag_round_stop: Dict[int, Dict[Stop, Bag]], k: int, journeys: List[Journey]
+    ):
         """Create journeys as list of Legs"""
+       
+        last_round_bags = bag_round_stop[k]
 
-        for jrny in all_journeys:
+        for jrny in journeys:
             current_leg = jrny[0]
 
-            # End of journey
+            # End of journey if we are at origin stop or journey is not feasible
             if current_leg.trip is None or current_leg.from_stop in from_stops:
                 jrny.remove_transfer_legs()
                 yield jrny
                 continue
 
             # Loop trough each new leg
-            for new_label in last_round_bags[current_leg.from_stop].labels:
+            labels_to_from_stop = last_round_bags[current_leg.from_stop].labels
+            for new_label in labels_to_from_stop:
                 new_leg = Leg(
                     new_label.from_stop,
                     current_leg.from_stop,
                     new_label.trip,
                     new_label.earliest_arrival_time,
                     new_label.fare,
+                    new_label.n_trips,
                 )
-                # Only add if arrival time is earlier and fare is lower or equal
-                if (
-                    new_label.earliest_arrival_time <= current_leg.earliest_arrival_time
-                    and new_label.fare <= current_leg.fare
-                ):
+                # Only add new_leg if compatible before current leg, e.g. earlier arrival time, etc.
+                if new_leg.is_compatible_before(current_leg):
                     new_jrny = deepcopy(jrny)
                     new_jrny.prepend_leg(new_leg)
-                    for i in loop(last_round_bags, [new_jrny]):
+                    for i in loop(bag_round_stop, k, [new_jrny]):
                         yield i
 
-    last_round_bags = bag_round_stop[k]
     journeys = [Journey(legs=[leg]) for leg in destination_legs]
-    journeys = [jrny for jrny in loop(last_round_bags, journeys)]
+    journeys = [jrny for jrny in loop(bag_round_stop, k, journeys)]
 
     return journeys
