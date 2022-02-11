@@ -4,8 +4,8 @@ from collections import defaultdict
 import pandas as pd
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import (
+from pyraptor.model.structures import (
+    Timetable,
     Stop,
     Stops,
     Trip,

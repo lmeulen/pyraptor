@@ -2,12 +2,11 @@
 from typing import List, Tuple, Dict
 from copy import deepcopy
 from pprint import pprint
-from pdb import set_trace
 
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import (
+from pyraptor.model.structures import (
     Stop,
     Route,
     Bag,
@@ -104,9 +103,7 @@ class McRaptorAlgorithm:
         route_marked_stops: List[Tuple[Route, Stop]],
     ) -> Tuple[Dict[int, Dict[int, Bag]], List[Stop]]:
         """
-        Iterator through the stops reachable and add all new reachable stops
-        by following all trips from the reached stations. Trips are only followed
-        in the direction of travel and beyond already added points.
+        Traverse through all marked route-stops and update labels accordingly.
 
         :param bag_round_stop: Bag per round per stop
         :param k: current round
@@ -164,10 +161,10 @@ class McRaptorAlgorithm:
                     )
                     if earliest_trip is not None:
                         # Update label with earliest trip in route leaving from this station
-                        if label.trip != earliest_trip: 
+                        if label.trip != earliest_trip:
                             # if trip is different we hop-on the trip at current_stop
                             label.from_stop = current_stop
-                        label.update_trip(earliest_trip)                        
+                        label.update_trip(earliest_trip)
                     else:
                         # Make label unusable as there is no trip leaving from this stop
                         label.set_infinite()
@@ -185,7 +182,6 @@ class McRaptorAlgorithm:
         logger.debug("Add transfer times...")
 
         marked_stops_transfers = []
-        # import pdb; pdb.set_trace()
 
         # Add in transfers to other platforms
         for stop in marked_stops:
@@ -288,7 +284,7 @@ def reconstruct_journeys(
         bag_round_stop: Dict[int, Dict[Stop, Bag]], k: int, journeys: List[Journey]
     ):
         """Create journeys as list of Legs"""
-       
+
         last_round_bags = bag_round_stop[k]
 
         for jrny in journeys:

@@ -1,14 +1,14 @@
 """Test Range Query"""
-from pyraptor import range_query
-from pyraptor.dao.timetable import Timetable
+from pyraptor import query_range_raptor
+from pyraptor.model.structures import Timetable
 
 
 def test_has_main():
     """Has main"""
-    assert range_query.main
+    assert query_range_raptor.main
 
 
-def test_perform_range_raptor(default_timetable: Timetable):
+def test_query_range_raptor(default_timetable: Timetable):
     """Test perform range raptor"""
     origin_station = "A"
     destination_station = "F"
@@ -16,21 +16,21 @@ def test_perform_range_raptor(default_timetable: Timetable):
     dep_secs_max = 4000
     rounds = 4
 
-    journeys_to_destination = range_query.run_range_raptor(
+    journeys_to_destinations = query_range_raptor.run_range_raptor(
         default_timetable,
         origin_station,
         dep_secs_min,
         dep_secs_max,
         rounds,
     )
-    range_query.print_journeys(journeys_to_destination, destination_station)
+    query_range_raptor.print_journeys(journeys_to_destinations[destination_station])
 
     assert (
-        len(journeys_to_destination.keys()) == 3
+        len(journeys_to_destinations.keys()) == 3
     ), "should have 3 destinations (4 stations minus 1 origin station)"
     assert (
-        len(journeys_to_destination[destination_station]) == 2
+        len(journeys_to_destinations[destination_station]) == 2
     ), "should have 2 travel options"
 
-    for journey in journeys_to_destination[destination_station][::-1]:
+    for journey in journeys_to_destinations[destination_station][::-1]:
         assert len(journey) == 3, "should use 3 trips from A to E"

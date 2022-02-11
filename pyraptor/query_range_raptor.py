@@ -102,7 +102,8 @@ def main(
     )
 
     # All destinations are present in labels, so this is only for logging purposes
-    print_journeys(journeys_to_destinations, destination_station)
+    logger.info(f"Journeys to destination station '{destination_station}'")
+    print_journeys(journeys_to_destinations[destination_station])
 
 
 def run_range_raptor(
@@ -168,13 +169,9 @@ def run_range_raptor(
     return journeys_to_destinations
 
 
-def print_journeys(
-    journeys_to_destinations: Dict[str, list],
-    destination_station: str,
-):
+def print_journeys(journeys_to_destinations: Dict[str, list]):
     """Print journeys"""
-    logger.info(f"Journeys to destination station '{destination_station}'")
-    for journey in journeys_to_destinations[destination_station][::-1]:
+    for journey in journeys_to_destinations[::-1]:
         print_journey(journey)
 
 

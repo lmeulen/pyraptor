@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from pyraptor.dao.timetable import Timetable
+from pyraptor.model.structures import Timetable
 from tests.utils import to_stops_and_trips, to_timetable
 
 
@@ -212,18 +212,34 @@ def get_stop_times_with_transfers_and_fare():
 
     stops = pd.DataFrame(
         {
-            "stop_uic": [f"{i+8400000}" for i in [1] + [2]*3 + [3] + [4]*3 + [5,6] + [7]*2 + [8]*2 + [9]],
+            "stop_uic": [
+                f"{i+8400000}"
+                for i in [1]
+                + [2] * 3
+                + [3]
+                + [4] * 3
+                + [5, 6]
+                + [7] * 2
+                + [8] * 2
+                + [9]
+            ],
             "stop_id": [
                 "st1_sp1",
-                "st2_sp1", "st2_sp2", "st2_sp3",
+                "st2_sp1",
+                "st2_sp2",
+                "st2_sp3",
                 "st3_sp1",
-                "st4_sp1", "st4_sp2", "st4_sp3",
+                "st4_sp1",
+                "st4_sp2",
+                "st4_sp3",
                 "st5_sp1",
                 "st6_sp1",
-                "st7_sp1", "st7_sp2",
-                "st8_sp1", "st8_sp2",
-                "st9_sp1"
-            ]
+                "st7_sp1",
+                "st7_sp2",
+                "st8_sp1",
+                "st8_sp2",
+                "st9_sp1",
+            ],
         }
     )
     stops["parent_stop_id"] = stops["stop_id"].apply(lambda x: x[:-4])
@@ -246,12 +262,8 @@ def get_stop_times_with_transfers_and_fare():
             "treinnummer": [203] * 4,
             "toeslag": [0] * 4,
             "stop_id": ["st8_sp1", "st7_sp1", "st4_sp3", "st6_sp1"],
-            "vertrekmoment_utc": np.arange(
-                2.75, 4.75, 0.5
-            ), 
-            "aankomstmoment_utc": np.arange(
-                2.75, 4.75, 0.5
-            ),
+            "vertrekmoment_utc": np.arange(2.75, 4.75, 0.5),
+            "aankomstmoment_utc": np.arange(2.75, 4.75, 0.5),
             "vervoerstrajectindex": range(1, 5),
             "trip_id": [2] * 4,
         }
@@ -262,16 +274,12 @@ def get_stop_times_with_transfers_and_fare():
             "treinnummer": [201] * 4,
             "toeslag": [0] * 4,
             "stop_id": ["st8_sp1", "st7_sp1", "st4_sp3", "st6_sp1"],
-            "vertrekmoment_utc": np.arange(
-                2.5, 4.5, 0.5
-            ),
-            "aankomstmoment_utc": np.arange(
-                2.5, 4.5, 0.5
-            ),
+            "vertrekmoment_utc": np.arange(2.5, 4.5, 0.5),
+            "aankomstmoment_utc": np.arange(2.5, 4.5, 0.5),
             "vervoerstrajectindex": range(1, 5),
             "trip_id": [5] * 4,
         }
-    ) 
+    )
     # same as trip2 but earlier
     trip3 = pd.DataFrame(
         {
@@ -289,7 +297,7 @@ def get_stop_times_with_transfers_and_fare():
         {
             "verkeersdatum_ams": [traffic_date] * 3,
             "treinnummer": [401] * 3,
-            "toeslag": [0,7,0],
+            "toeslag": [0, 7, 0],
             "stop_id": ["st2_sp1", "st9_sp1", "st4_sp1"],
             "vertrekmoment_utc": [2, 2.5, 3],
             "aankomstmoment_utc": [2, 2.5, 3],
@@ -301,7 +309,7 @@ def get_stop_times_with_transfers_and_fare():
         {
             "verkeersdatum_ams": [traffic_date] * 2,
             "treinnummer": [501] * 2,
-            "toeslag": [0,0],
+            "toeslag": [0, 0],
             "stop_id": ["st2_sp2", "st8_sp2"],
             "vertrekmoment_utc": [2, 2.5],
             "aankomstmoment_utc": [2, 2.5],
@@ -313,7 +321,7 @@ def get_stop_times_with_transfers_and_fare():
         {
             "verkeersdatum_ams": [traffic_date] * 2,
             "treinnummer": [503] * 2,
-            "toeslag": [0,0],
+            "toeslag": [0, 0],
             "stop_id": ["st2_sp2", "st8_sp2"],
             "vertrekmoment_utc": [2.5, 3],
             "aankomstmoment_utc": [2.5, 3],
@@ -322,7 +330,9 @@ def get_stop_times_with_transfers_and_fare():
         }
     )
 
-    stop_times = pd.concat([trip1, trip2, trip3, trip4, trip5, trip6, trip7], axis=0, ignore_index=True)
+    stop_times = pd.concat(
+        [trip1, trip2, trip3, trip4, trip5, trip6, trip7], axis=0, ignore_index=True
+    )
     stop_times["vertrekmoment_utc"] *= 600
     stop_times["aankomstmoment_utc"] *= 600
     trips = stop_times[
@@ -338,22 +348,36 @@ def get_stop_times_with_many_transfers():
 
     stops = pd.DataFrame(
         {
-            "stop_uic": [f"{i+8400000}" for i in [4]*2 + [5,6] + [7]*2 + [8]*2 + [9] + [10] + [11] + [12] + [14]],
+            "stop_uic": [
+                f"{i+8400000}"
+                for i in [4] * 2
+                + [5, 6]
+                + [7] * 2
+                + [8] * 2
+                + [9]
+                + [10]
+                + [11]
+                + [12]
+                + [14]
+            ],
             "stop_id": [
                 # "st1_sp1",
                 # "st2_sp1", "st2_sp2",
                 # "st3_sp1",
-                "st4_sp1", "st4_sp2",
+                "st4_sp1",
+                "st4_sp2",
                 "st5_sp1",
                 "st6_sp1",
-                "st7_sp1", "st7_sp2",
-                "st8_sp1", "st8_sp2",
+                "st7_sp1",
+                "st7_sp2",
+                "st8_sp1",
+                "st8_sp2",
                 "st9_sp1",
                 "st10_sp1",
                 "st11_sp1",
                 "st12_sp1",
                 "st14_sp1",
-            ]
+            ],
         }
     )
     stops["parent_stop_id"] = stops["stop_id"].apply(lambda x: x[:-4])
@@ -384,7 +408,7 @@ def get_stop_times_with_many_transfers():
         {
             "verkeersdatum_ams": [traffic_date] * 3,
             "treinnummer": [401] * 3,
-            "toeslag": [0]*3,
+            "toeslag": [0] * 3,
             "stop_id": ["st10_sp1", "st11_sp1", "st12_sp1"],
             "vertrekmoment_utc": range(11, 14),
             "vervoerstrajectindex": range(1, 4),
@@ -395,7 +419,7 @@ def get_stop_times_with_many_transfers():
         {
             "verkeersdatum_ams": [traffic_date] * 2,
             "treinnummer": [501] * 2,
-            "toeslag": [0]*2,
+            "toeslag": [0] * 2,
             "stop_id": ["st12_sp1", "st7_sp1"],
             "vertrekmoment_utc": range(14, 16),
             "vervoerstrajectindex": range(1, 3),
@@ -406,7 +430,7 @@ def get_stop_times_with_many_transfers():
         {
             "verkeersdatum_ams": [traffic_date] * 3,
             "treinnummer": [701] * 3,
-            "toeslag": [0]*3,
+            "toeslag": [0] * 3,
             "stop_id": ["st10_sp1", "st7_sp1", "st14_sp1"],
             "vertrekmoment_utc": range(16, 19),
             "vervoerstrajectindex": range(1, 4),
@@ -414,7 +438,9 @@ def get_stop_times_with_many_transfers():
         }
     )
 
-    stop_times = pd.concat([trip1, trip3, trip4, trip5, trip7], axis=0, ignore_index=True)
+    stop_times = pd.concat(
+        [trip1, trip3, trip4, trip5, trip7], axis=0, ignore_index=True
+    )
     stop_times["vertrekmoment_utc"] *= 3600
     stop_times["aankomstmoment_utc"] = stop_times["vertrekmoment_utc"]
     trips = stop_times[
@@ -423,5 +449,5 @@ def get_stop_times_with_many_transfers():
 
     return stops, stop_times, trips
 
-# To do: treinnummers die aan elkaar gekoppeld zijn. Dus wel verandering in trip, maar rzg hoeft niet over te stappen. Dus geen transfertime.
 
+# To do: treinnummers die aan elkaar gekoppeld zijn. Dus wel verandering in trip, maar rzg hoeft niet over te stappen. Dus geen transfertime.

@@ -1,11 +1,11 @@
 """Test Query"""
-from pyraptor import query
-from pyraptor.dao.timetable import Timetable
+from pyraptor import query_raptor
+from pyraptor.model.structures import Timetable
 
 
 def test_has_main():
     """Has main"""
-    assert query.main
+    assert query_raptor.main
 
 
 def test_query_raptor(default_timetable: Timetable):
@@ -15,16 +15,16 @@ def test_query_raptor(default_timetable: Timetable):
     dep_secs = 0
     rounds = 4
 
-    journey = query.run_raptor(
+    journey_to_destinations = query_raptor.run_raptor(
         default_timetable,
         origin_station,
         destination_station,
         dep_secs,
         rounds,
     )
-
+    journey = journey_to_destinations[destination_station]
     assert journey is not None, "destination should be reachable"
 
-    query.print_journey(journey, dep_secs)
+    query_raptor.print_journey(journey, dep_secs)
 
-    assert len(journey) == 3, "should have 2 trips in journey"
+    assert len(journey) == 3, "should have 3 trips in journey"

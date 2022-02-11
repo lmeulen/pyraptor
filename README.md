@@ -1,12 +1,13 @@
 # PyRaptor
 
-Python implementation of RAPTOR using GTFS data.
+Python implementation of RAPTOR and McRAPTOR using GTFS data.
 
-Three applications:
+Four applications:
 
 - `pyraptor/gtfs/timetable.py` - Extract the time table information for one operator from a GTFS dataset and write it to an optimized format for querying with RAPTOR.
-- `pyraptor/query.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
-- `pyraptor/range_query.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
+- `pyraptor/query_raptor.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
+- `pyraptor/query_range_raptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
+- `pyraptor/query_mcraptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using McRAPTOR
 
 ## Installation
 
@@ -16,13 +17,19 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 ### 1. Create timetable from GTFS
 
-`python pyraptor/gtfs/timetable.py -d "20211201" -a NS`
+`python pyraptor/gtfs/timetable.py -d "20211201" -a NS --icd`
 
 ### 2. Run (range) queries on timetable
 
-`python pyraptor/query.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+#### RAPTOR query
 
-`python pyraptor/range_query.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
+`python pyraptor/query_raptor.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+
+#### rRAPTOR query
+
+`python pyraptor/query_range_raptor.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
+
+#### McRaptor query
 
 `python pyraptor/query_mcraptor.py -i output/timetable -or "Breda" -d "Amsterdam Centraal" -t "08:30:00" -r 2`
 
@@ -32,7 +39,7 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 # Notes
 
-- The current version doesn't implement target pruning as we are interested in querying all targets at once and performance is sufficient already.
+- The current version doesn't implement target pruning as we are interested in efficiently querying all targets after running RAPTOR algorithm.
 
 # References
 

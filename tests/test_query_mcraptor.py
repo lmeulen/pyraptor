@@ -2,7 +2,7 @@
 from pyraptor import query_mcraptor
 from pyraptor.model.base import print_journeys
 from pyraptor.model.mcraptor import pareto_set_labels
-from pyraptor.model.datatypes import Stop, Label
+from pyraptor.model.structures import Stop, Label
 
 
 def test_run_mcraptor_with_transfers_and_fares(timetable_with_transfers_and_fares):
@@ -83,7 +83,7 @@ def test_run_mcraptor_many_transfers(timetable_with_many_transfers):
 #     assert labels == expected
 
 
-# # TODO: 
+# # TODO:
 # # Test Vlissingen - Heerenven
 # # VS - RSD (roosendaal) - ZL - HR
 # # VS - RTD - ZL - HR

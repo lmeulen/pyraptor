@@ -9,6 +9,7 @@ from copy import deepcopy
 
 import attr
 import numpy as np
+from loguru import logger
 
 from pyraptor.util import LARGE_NUMBER
 
@@ -16,6 +17,26 @@ from pyraptor.util import LARGE_NUMBER
 def same_type_and_id(first, second):
     """Same type and ID"""
     return type(first) is type(second) and first.id == second.id
+
+
+@dataclass
+class Timetable:
+    """Timetable data"""
+
+    stations: Stations = None
+    stops: Stops = None
+    trips: Trips = None
+    trip_stop_times: TripStopTimes = None
+    routes: Routes = None
+
+    def counts(self) -> None:
+        """Print timetable counts"""
+        logger.debug("Counts:")
+        logger.debug("Stations   : {}", len(self.stations))
+        logger.debug("Routes     : {}", len(self.routes))
+        logger.debug("Trips      : {}", len(self.trips))
+        logger.debug("Stops      : {}", len(self.stops))
+        logger.debug("Stop Times : {}", len(self.trip_stop_times))
 
 
 @attr.s(repr=False, cmp=False)
@@ -36,8 +57,8 @@ class Stop:
 
     def __repr__(self):
         if self.id == self.name:
-            return "Stop({})".format(self.id)
-        return "Stop({} [{}])".format(self.name, self.id)
+            return "Stop({self.id})"
+        return "Stop({self.name} [{self.id}])"
 
 
 class Stops:

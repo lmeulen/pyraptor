@@ -1,10 +1,9 @@
-
 """Shared functionality between RAPTOR algorithms"""
 from typing import List
 
 from loguru import logger
 
-from pyraptor.model.datatypes import Journey
+from pyraptor.model.structures import Journey
 from pyraptor.util import sec2str
 
 

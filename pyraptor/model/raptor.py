@@ -7,7 +7,7 @@ from copy import deepcopy
 from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
-from pyraptor.model.datatypes import Stop, Trip, Route, Leg, Journey
+from pyraptor.model.structures import Stop, Trip, Route, Leg, Journey
 from pyraptor.util import (
     LARGE_NUMBER,
     TRANSFER_TRIP,
