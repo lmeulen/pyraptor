@@ -22,14 +22,7 @@ def parse_arguments():
         "-i",
         "--input",
         type=str,
-        default="output/timetable",
-        help="Input directory",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        default="output/results",
+        default="data/output",
         help="Input directory",
     )
     parser.add_argument(
@@ -62,7 +55,6 @@ def parse_arguments():
 
 def main(
     input_folder,
-    output_folder,
     origin_station,
     destination_station,
     departure_time,
@@ -71,7 +63,6 @@ def main(
     """Run RAPTOR algorithm"""
 
     logger.debug("Input directory     : {}", input_folder)
-    logger.debug("Output directory    : {}", output_folder)
     logger.debug("Origin station      : {}", origin_station)
     logger.debug("Destination station : {}", destination_station)
     logger.debug("Departure time      : {}", departure_time)
@@ -139,7 +130,6 @@ if __name__ == "__main__":
     args = parse_arguments()
     main(
         args.input,
-        args.output,
         args.origin,
         args.destination,
         args.time,

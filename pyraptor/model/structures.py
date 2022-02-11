@@ -57,8 +57,8 @@ class Stop:
 
     def __repr__(self):
         if self.id == self.name:
-            return "Stop({self.id})"
-        return "Stop({self.name} [{self.id}])"
+            return f"Stop({self.id})"
+        return f"Stop({self.name} [{self.id}])"
 
 
 class Stops:
@@ -442,6 +442,7 @@ class Leg:
 
     @property
     def criteria(self):
+        """Criteria"""
         return [self.earliest_arrival_time, self.fare, self.n_trips]
 
     @property
@@ -458,25 +459,31 @@ class Leg:
             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
         ][0]
 
+    def is_transfer(self):
+        """Is transfer leg"""
+        return self.from_stop.station == self.to_stop.station
+
     def is_compatible_before(self, other_leg: Leg):
         """
         Check if Leg is allowed before another leg. That is,
-        - its possible to go form current leg to other leg concerning arrival time
-        - number of trips of current leg differs by 1 if the trip of the other leg differs and is
-        0 when the trip is equal.
-        - the accumulated value of a criteria of current leg is larger or equal to the accumulated value of the other leg
-        (current leg is instance of this class)
+        - It is possible to go form current leg to other leg concerning arrival time
+        - Number of trips of current leg differs by > 1, i.e. a differen trip,
+          or >= 0 when the other_leg is a transfer_leg
+        - The accumulated value of a criteria of current leg is larger or equal to the accumulated value of
+          the other leg (current leg is instance of this class)
         """
         arrival_time_compatible = (
             other_leg.earliest_arrival_time >= self.earliest_arrival_time
         )
-        n_trips_compatible = other_leg.n_trips > self.n_trips
+        n_trips_compatible = (
+            other_leg.n_trips >= self.n_trips
+            if other_leg.is_transfer()
+            else other_leg.n_trips > self.n_trips
+        )
         criteria_compatible = np.all(
             np.array([c for c in other_leg.criteria])
             >= np.array([c for c in self.criteria])
         )
-        # TODO
-        # - transfer trips are ok if same station
 
         return all([arrival_time_compatible, n_trips_compatible, criteria_compatible])
 
@@ -493,10 +500,9 @@ def pareto_set_labels(labels: List[Label]):
     for i, label in enumerate(labels_criteria):
         if is_efficient[i]:
             # Keep any point with a lower cost
-            # and keep labels with equal criteria (but with possibly different trips/from_stops)
             is_efficient[is_efficient] = np.any(
                 labels_criteria[is_efficient] < label, axis=1
-            )  # + np.all(labels_criteria[is_efficient] == label, axis=1)
+            )
             is_efficient[i] = True  # And keep self
 
     return [labels for i, labels in enumerate(labels) if is_efficient[i]]
@@ -511,6 +517,7 @@ class Label:
     trip: Trip  # trip to take to obtain travel_time and fare
     from_stop: Stop  # stop to hop-on the trip
     n_trips: int = 0  # number of trips
+    infinite: bool = False
 
     @property
     def criteria(self):
@@ -532,12 +539,11 @@ class Label:
 
     def set_infinite(self):
         """Makes label dominated by any other label"""
-        self.update(
-            earliest_arrival_time=LARGE_NUMBER,
-            fare_addition=LARGE_NUMBER,
-        )
+        self.earliest_arrival_time = LARGE_NUMBER
+        self.fare = LARGE_NUMBER
         self.trip = None
         self.n_trips = LARGE_NUMBER
+        self.infinite = True
 
 
 @dataclass
@@ -558,10 +564,13 @@ class Bag:
         """Add"""
         self.labels.append(label)
 
-    def merge(self, bag: Bag) -> None:
-        """Merge"""
-        self.labels.extend(deepcopy(bag).labels)
-        self.labels = pareto_set_labels(self.labels)
+    def merge(self, other_bag: Bag) -> bool:
+        """Merge other bag in bag and return true if bag is updated"""
+        pareto_labels = self.labels + deepcopy([l for l in other_bag.labels if l.infinite is False])
+        pareto_labels = pareto_set_labels(pareto_labels)
+        bag_update = True if pareto_labels != self.labels else False
+        self.labels = pareto_labels
+        return bag_update
 
     def labels_with_trip(self):
         """All labels with trips, i.e. all labels that are reachable with a trip with given criterion"""

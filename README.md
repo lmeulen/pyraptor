@@ -23,19 +23,17 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 #### RAPTOR query
 
-`python pyraptor/query_raptor.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+`python pyraptor/query_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
 
 #### rRAPTOR query
 
-`python pyraptor/query_range_raptor.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
+`python pyraptor/query_range_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
 
 #### McRaptor query
 
-`python pyraptor/query_mcraptor.py -i output/timetable -or "Breda" -d "Amsterdam Centraal" -t "08:30:00" -r 2`
+`python pyraptor/query_mcraptor.py -or "Breda" -d "Amsterdam Centraal" -t "08:30:00" -r 2`
 
-`python pyraptor/query_mcraptor.py -i output/timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00" -r 2`
-
-`python pyraptor/query_mcraptor.py -i output/timetable -or "Vlissingen" -d "Akkrum" -t "08:30:00" -r 4`
+`python pyraptor/query_mcraptor.py -or "Vlissingen" -d "Akkrum" -t "08:30:00" -r 4`
 
 # Notes
 
