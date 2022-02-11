@@ -3,21 +3,18 @@ import os
 import numpy as np
 
 
-SAVE_RESULTS = True
-TRANSFER_COST = 3 * 60  # Default transfer time is 3 minutes
-T3M = 3 * 60
-T1H = 1 * 60 * 60
-T6H = 6 * 60 * 60
-T24H = 24 * 60 * 60
+TRANSFER_COST = 2 * 60  # Default transfer time is 2 minutes
+LARGE_NUMBER = 999999
+TRANSFER_TRIP = None
 
 
-def mkdir_if_not_exists(name):
+def mkdir_if_not_exists(name: str) -> None:
     """Create directory if not exists"""
     if not os.path.exists(name):
         os.makedirs(name)
 
 
-def str2sec(time_str):
+def str2sec(time_str: str) -> int:
     """
     Convert hh:mm:ss to seconds since midnight
     :param time_str: String in format hh:mm:ss
@@ -31,7 +28,7 @@ def str2sec(time_str):
     return int(minutes) * 60 + int(seconds)
 
 
-def sec2str(scnds, show_sec=False):
+def sec2str(scnds: int, show_sec: bool = False) -> str:
     """
     Convert hh:mm:ss to seconds since midnight
 

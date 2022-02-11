@@ -1,12 +1,13 @@
 # PyRaptor
 
-Python implementation of RAPTOR using GTFS data.
+Python implementation of RAPTOR and McRAPTOR using GTFS data. Tested on Dutch GTFS data.
 
-Three applications:
+This repository contains four applications:
 
-- `pyraptor/gtfs/timetable.py` - Extract the time table information for one operator from a GTFS dataset and write it to an optimized format for querying with RAPTOR.
-- `pyraptor/query.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
-- `pyraptor/range_query.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
+1. `pyraptor/gtfs/timetable.py` - Extract the timetable information for one operator from a GTFS dataset and write it to an optimized format for querying with RAPTOR.
+2. `pyraptor/query_raptor.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
+3. `pyraptor/query_range_raptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
+4. `pyraptor/query_mcraptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using McRAPTOR
 
 ## Installation
 
@@ -16,13 +17,43 @@ Install from PyPi using `pip install pyraptor` or clone this repository and inst
 
 ### 1. Create timetable from GTFS
 
-`python pyraptor/gtfs/timetable.py -d "20211201" -a NS`
+> `python pyraptor/gtfs/timetable.py -d "20211201" -a NS --icd`
 
 ### 2. Run (range) queries on timetable
 
-`python pyraptor/query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+Quering on the timetable to get the best journeys can be done using several implementations.
 
-`python pyraptor/range_query.py -i output/optimized_timetable -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
+#### RAPTOR query
+
+RAPTOR returns a single journey with the earliest arrival time given the query time.
+
+**Examples**
+
+> * `python pyraptor/query_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+
+#### rRAPTOR query
+
+rRAPTOR returns a set of best journeys with a given query time range.
+Journeys that are dominated by other journeys in the time range are removed.
+
+**Examples**
+ 
+> `python pyraptor/query_range_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et > "08:30:00"`
+
+#### McRaptor query
+
+McRaptor returns a set of Pareto-optimal journeys given multiple criterions, i.e. earliest 
+arrival time, fare and number of trips.
+
+**Examples**
+
+> `python pyraptor/query_mcraptor.py -or "Breda" -d "Amsterdam Centraal" -t "08:30:00"`
+
+> `python pyraptor/query_mcraptor.py -or "Vlissingen" -d "Akkrum" -t "08:30:00"`
+
+# Notes
+
+- The current version doesn't implement target pruning as we are interested in efficiently querying all targets/destinations after running RAPTOR algorithm.
 
 # References
 

@@ -8,9 +8,10 @@ from collections import defaultdict
 import pandas as pd
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable, write_timetable
+from pyraptor.dao import write_timetable
 from pyraptor.util import mkdir_if_not_exists, str2sec
-from pyraptor.model.datatypes import (
+from pyraptor.model.structures import (
+    Timetable,
     Stop,
     Stops,
     Trip,
@@ -19,6 +20,7 @@ from pyraptor.model.datatypes import (
     TripStopTimes,
     Station,
     Stations,
+    Routes,
 )
 
 
@@ -26,7 +28,6 @@ from pyraptor.model.datatypes import (
 class GtfsTimetable:
     """Gtfs Timetable data"""
 
-    routes = None
     trips = None
     calendar = None
     stop_times = None
@@ -40,26 +41,31 @@ def parse_arguments():
         "-i",
         "--input",
         type=str,
-        default="data/NL-gtfs",
+        default="data/input/NL-gtfs",
         help="Input directory",
     )
     parser.add_argument(
         "-o",
         "--output",
         type=str,
-        default="output/optimized_timetable",
+        default="data/output",
         help="Input directory",
     )
     parser.add_argument(
         "-d", "--date", type=str, default="20210906", help="Departure date (yyyymmdd)"
     )
     parser.add_argument("-a", "--agencies", nargs="+", default=["NS"])
+    parser.add_argument("--icd", action="store_true", help="Add ICD fare(s)")
     arguments = parser.parse_args()
     return arguments
 
 
 def main(
-    input_folder: str, output_folder: str, departure_date: str, agencies: List[str]
+    input_folder: str,
+    output_folder: str,
+    departure_date: str,
+    agencies: List[str],
+    icd_fix: bool = False,
 ):
     """Main function"""
 
@@ -67,7 +73,7 @@ def main(
     mkdir_if_not_exists(output_folder)
 
     gtfs_timetable = read_gtfs_timetable(input_folder, departure_date, agencies)
-    timetable = gtfs_to_pyraptor_timetable(gtfs_timetable)
+    timetable = gtfs_to_pyraptor_timetable(gtfs_timetable, icd_fix)
     write_timetable(output_folder, timetable)
 
 
@@ -155,7 +161,8 @@ def read_gtfs_timetable(
 
     # Read stopareas, i.e. stations
     stopareas = stops["parent_station"].unique()
-    stops = stops.append(stops_full.loc[stops_full["stop_id"].isin(stopareas)].copy())
+    # stops = stops.append(.copy())
+    stops = pd.concat([stops, stops_full.loc[stops_full["stop_id"].isin(stopareas)]])
 
     # stops["zone_id"] = stops["zone_id"].str.replace("IFF:", "").str.upper()
     stops["stop_code"] = stops.stop_code.str.upper()
@@ -171,14 +178,7 @@ def read_gtfs_timetable(
     # Filter out the general station codes
     stops = stops.loc[~stops.parent_station.isna()]
 
-    logger.debug("Counts:")
-    logger.debug("Routes     : {}", len(routes))
-    logger.debug("Trips      : {}", len(trips))
-    logger.debug("Stops      : {}", len(stops))
-    logger.debug("Stop Times : {}", len(stop_times))
-
     gtfs_timetable = GtfsTimetable()
-    gtfs_timetable.routes = routes
     gtfs_timetable.trips = trips
     gtfs_timetable.stop_times = stop_times
     gtfs_timetable.stops = stops
@@ -186,22 +186,28 @@ def read_gtfs_timetable(
     return gtfs_timetable
 
 
-def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
+def gtfs_to_pyraptor_timetable(
+    gtfs_timetable: GtfsTimetable, icd_fix: bool = False
+) -> Timetable:
     """
     Convert timetable for usage in Raptor algorithm.
     """
     logger.info("Convert GTFS timetable to timetable for PyRaptor algorithm")
 
     # Stations and stops, i.e. platforms
+    logger.debug("Add stations and stops")
+
     stations = Stations()
     stops = Stops()
 
+    gtfs_timetable.stops.platform_code = gtfs_timetable.stops.platform_code.fillna("?")
+
     for s in gtfs_timetable.stops.itertuples():
-        # TODO parent_station instead of name as id
         station = Station(s.stop_name, s.stop_name)
         station = stations.add(station)
 
-        stop = Stop(s.stop_id, s.stop_id, station, s.platform_code)
+        stop_id = f"{s.stop_name}-{s.platform_code}"
+        stop = Stop(s.stop_id, stop_id, station, s.platform_code)
 
         station.add_stop(stop)
         stops.add(stop)
@@ -212,6 +218,8 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
         stop_times[stop_time.trip_id].append(stop_time)
 
     # Trips and Trip Stop Times
+    logger.debug("Add trips and trip stop times")
+
     trips = Trips()
     trip_stop_times = TripStopTimes()
 
@@ -230,7 +238,10 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
 
             # Trip Stop Times
             stop = stops.get(stop_time.stop_id)
-            trip_stop_time = TripStopTime(trip, stopidx, stop, dts_arr, dts_dep)
+
+            # GTFS files do not contain ICD supplement fare, so hard-coded here
+            fare = calculate_icd_fare(trip, stop, stations) if icd_fix is True else 0
+            trip_stop_time = TripStopTime(trip, stopidx, stop, dts_arr, dts_dep, fare)
 
             trip_stop_times.add(trip_stop_time)
             trip.add_stop_time(trip_stop_time)
@@ -239,15 +250,39 @@ def gtfs_to_pyraptor_timetable(gtfs_timetable: GtfsTimetable) -> Timetable:
         if trip:
             trips.add(trip)
 
-    timetable = Timetable()
-    timetable.stations = stations
-    timetable.stops = stops
-    timetable.trips = trips
-    timetable.trip_stop_times = trip_stop_times
+    # Routes
+    logger.debug("Add routes")
+
+    routes = Routes()
+    for trip in trips:
+        routes.add(trip)
+
+    timetable = Timetable(
+        stations=stations,
+        stops=stops,
+        trips=trips,
+        trip_stop_times=trip_stop_times,
+        routes=routes,
+    )
 
     return timetable
 
 
+def calculate_icd_fare(trip: Trip, stop: Stop, stations: Stations) -> int:
+    """Get supplemental fare for ICD"""
+    fare = 0
+    if 900 <= trip.hint <= 1099:
+        if (
+            trip.hint % 2 == 0 and stop.station == stations.get("Schiphol Airport")
+        ) or (
+            trip.hint % 2 == 1 and stop.station == stations.get("Rotterdam Centraal")
+        ):
+            fare = 1.67
+        else:
+            fare = 0
+    return fare
+
+
 if __name__ == "__main__":
     args = parse_arguments()
-    main(args.input, args.output, args.date, args.agencies)
+    main(args.input, args.output, args.date, args.agencies, args.icd)

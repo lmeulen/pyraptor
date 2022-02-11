@@ -1,22 +1,19 @@
 """Run query with RAPTOR algorithm"""
 import argparse
-from time import perf_counter
+from typing import List
+from copy import copy
 
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable, read_timetable
-from pyraptor.dao.results import write_results
-from pyraptor.model.raptor import (
-    RaptorAlgorithm,
-    reconstruct_journey,
-    add_journey_details,
-    final_destination,
-    print_journey,
+from pyraptor.dao.timetable import read_timetable
+from pyraptor.model.base import print_journeys
+from pyraptor.model.structures import Timetable, Journey
+from pyraptor.model.mcraptor import (
+    McRaptorAlgorithm,
+    reconstruct_journeys,
+    best_legs_to_destination_station,
 )
-from pyraptor.util import (
-    str2sec,
-    SAVE_RESULTS,
-)
+from pyraptor.util import str2sec
 
 
 def parse_arguments():
@@ -26,14 +23,7 @@ def parse_arguments():
         "-i",
         "--input",
         type=str,
-        default="output/optimized_timetable",
-        help="Input directory",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        default="output/results",
+        default="data/output",
         help="Input directory",
     )
     parser.add_argument(
@@ -66,7 +56,6 @@ def parse_arguments():
 
 def main(
     input_folder,
-    output_folder,
     origin_station,
     destination_station,
     departure_time,
@@ -75,7 +64,6 @@ def main(
     """Run RAPTOR algorithm"""
 
     logger.debug("Input directory     : {}", input_folder)
-    logger.debug("Output directory    : {}", output_folder)
     logger.debug("Origin station      : {}", origin_station)
     logger.debug("Destination station : {}", destination_station)
     logger.debug("Departure time      : {}", departure_time)
@@ -83,15 +71,14 @@ def main(
 
     timetable = read_timetable(input_folder)
 
-    logger.info("Calculating network from : {}".format(origin_station))
+    logger.info(f"Calculating network from : {origin_station}")
 
     # Departure time seconds
     dep_secs = str2sec(departure_time)
     logger.debug("Departure time (s.)  : " + str(dep_secs))
 
     # Find route between two stations
-    start = perf_counter()
-    bag_k, final_dest, evaluations = perform_raptor(
+    journeys = run_mcraptor(
         timetable,
         origin_station,
         destination_station,
@@ -100,29 +87,21 @@ def main(
     )
 
     # Output journey
-    if final_dest != 0:
-        journey = reconstruct_journey(final_dest, bag=bag_k[rounds])
-        detailed_journey = add_journey_details(timetable, journey)
-        print_journey(timetable, detailed_journey, dep_secs)
-
-    logger.info(
-        "RAPTOR Algorithm executed in {:.4f} seconds".format(perf_counter() - start)
-    )
-
-    if SAVE_RESULTS:
-        write_results(output_folder, timetable, bag_k, evaluations)
+    if len(journeys) != 0:
+        print_journeys(journeys, dep_secs)
 
 
-def perform_raptor(
+def run_mcraptor(
     timetable: Timetable,
     origin_station: str,
     destination_station: str,
     dep_secs: int,
     rounds: int,
-):
+) -> List[Journey]:
     """
-    Perform the Raptor algorithm.
+    Perform the McRaptor algorithm.
 
+    :param timetable: timetable
     :param origin_station: Name of origin station
     :param destination_station: Name of destation station
     :param dep_secs: Time of departure in seconds
@@ -134,28 +113,31 @@ def perform_raptor(
     to_stops = timetable.stations.get(destination_station).stops
 
     # Run Round-Based Algorithm
-    raptor = RaptorAlgorithm(timetable)
-    bag_k, evaluations = raptor.run(from_stops, dep_secs, rounds)
+    raptor = McRaptorAlgorithm(timetable)
+    bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
 
     # Determine the best destination ID, destination is a platform
-    bag = bag_k[rounds]
-    dest_stop = final_destination(to_stops, bag)
-    if dest_stop != 0:
-        logger.debug("Destination code   : {} ".format(dest_stop))
-        logger.info(
-            "Time to destination: {} minutes".format(bag[dest_stop.index][0] / 60)
-        )
+    last_round_bag = copy(bag_round_stop[rounds])
+    destination_legs = best_legs_to_destination_station(to_stops, last_round_bag)
+
+    if len(destination_legs) != 0:
+        logger.debug("Destination leg(s):")
+        for leg in destination_legs:
+            logger.debug(f"> {leg}")
     else:
         logger.info("Destination unreachable with given parameters")
 
-    return bag_k, dest_stop, evaluations
+    journeys = reconstruct_journeys(
+        from_stops, destination_legs, bag_round_stop, k=rounds
+    )
+
+    return journeys
 
 
 if __name__ == "__main__":
     args = parse_arguments()
     main(
         args.input,
-        args.output,
         args.origin,
         args.destination,
         args.time,
