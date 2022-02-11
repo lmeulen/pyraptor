@@ -2,12 +2,12 @@
 
 Python implementation of RAPTOR and McRAPTOR using GTFS data. Tested on Dutch GTFS data.
 
-This repository containts four applications.
+This repository contains four applications:
 
-- `pyraptor/gtfs/timetable.py` - Extract the timetable information for one operator from a GTFS dataset and write it to an optimized format for querying with RAPTOR.
-- `pyraptor/query_raptor.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
-- `pyraptor/query_range_raptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
-- `pyraptor/query_mcraptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using McRAPTOR
+1. `pyraptor/gtfs/timetable.py` - Extract the timetable information for one operator from a GTFS dataset and write it to an optimized format for querying with RAPTOR.
+2. `pyraptor/query_raptor.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
+3. `pyraptor/query_range_raptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
+4. `pyraptor/query_mcraptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using McRAPTOR
 
 ## Installation
 

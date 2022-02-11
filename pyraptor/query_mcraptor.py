@@ -1,5 +1,6 @@
 """Run query with RAPTOR algorithm"""
 import argparse
+from typing import List
 from copy import copy
 
 from loguru import logger
