@@ -49,8 +49,8 @@ def to_stops_and_trips(df: pd.DataFrame):
         [
             "treinnummer",
             "stop_id",
-            "aankomstmoment_utc",
-            "vertrekmoment_utc",
+            "aankomstmoment",
+            "vertrekmoment",
             "vervoerstrajectindex",
             "toeslag",
         ]
@@ -95,8 +95,8 @@ def to_timetable(stops_df, stop_times_df, trips_df) -> Timetable:
         )
         for stopidx, stop_time in enumerate(sort_stop_times):
             # Timestamps
-            dts_arr = stop_time.aankomstmoment_utc
-            dts_dep = stop_time.vertrekmoment_utc
+            dts_arr = stop_time.aankomstmoment
+            dts_dep = stop_time.vertrekmoment
 
             # Fare
             fare = stop_time.toeslag

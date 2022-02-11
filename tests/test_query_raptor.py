@@ -18,7 +18,6 @@ def test_query_raptor(default_timetable: Timetable):
     journey_to_destinations = query_raptor.run_raptor(
         default_timetable,
         origin_station,
-        destination_station,
         dep_secs,
         rounds,
     )
