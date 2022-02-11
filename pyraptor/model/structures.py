@@ -5,7 +5,7 @@ from collections import defaultdict
 from operator import attrgetter
 from typing import List, Dict, Tuple
 from dataclasses import dataclass, field
-from copy import deepcopy
+from copy import copy
 
 import attr
 import numpy as np
@@ -505,7 +505,7 @@ def pareto_set_labels(labels: List[Label]):
             )
             is_efficient[i] = True  # And keep self
 
-    return [labels for i, labels in enumerate(labels) if is_efficient[i]]
+    return [copy(label) for i, label in enumerate(labels) if is_efficient[i]]
 
 
 @dataclass
@@ -566,7 +566,9 @@ class Bag:
 
     def merge(self, other_bag: Bag) -> bool:
         """Merge other bag in bag and return true if bag is updated"""
-        pareto_labels = self.labels + deepcopy([l for l in other_bag.labels if l.infinite is False])
+        pareto_labels = self.labels + other_bag.labels
+        if len(pareto_labels) == 0:
+            return False
         pareto_labels = pareto_set_labels(pareto_labels)
         bag_update = True if pareto_labels != self.labels else False
         self.labels = pareto_labels

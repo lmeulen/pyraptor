@@ -1,11 +1,10 @@
 """McRAPTOR algorithm"""
 from typing import List, Tuple, Dict
 from copy import deepcopy
-from pprint import pprint
+from time import perf_counter
 
 from loguru import logger
 from tqdm import tqdm
-
 from pyraptor.dao.timetable import Timetable
 from pyraptor.model.structures import (
     Stop,
@@ -16,10 +15,7 @@ from pyraptor.model.structures import (
     Journey,
     pareto_set_labels,
 )
-from pyraptor.util import (
-    TRANSFER_COST,
-    TRANSFER_TRIP,
-)
+from pyraptor.util import TRANSFER_COST
 
 
 class McRaptorAlgorithm:
@@ -28,8 +24,12 @@ class McRaptorAlgorithm:
     def __init__(self, timetable: Timetable):
         self.timetable = timetable
 
-    def run(self, from_stops, dep_secs, rounds):
+    def run(
+        self, from_stops: List[Stop], dep_secs: int, rounds: int
+    ) -> Dict[int, Dict[int, Bag]]:
         """Run Round-Based Algorithm"""
+
+        s = perf_counter()
 
         # Initialize empty bag, i.e. B_k(p) = [] for every k and p
         bag_round_stop: Dict[int, Dict[Stop, Bag]] = {}
@@ -43,35 +43,36 @@ class McRaptorAlgorithm:
 
         # Initialize bag for round 0, i.e. add Labels with criterion 0 for all from stops
         for from_stop in from_stops:
-            bag_round_stop[0][from_stop].add(
-                Label(dep_secs, 0, TRANSFER_TRIP, from_stop)
-            )
+            bag_round_stop[0][from_stop].add(Label(dep_secs, 0, None, from_stop))
 
         marked_stops = from_stops
 
         # Run rounds
         for k in range(1, rounds + 1):
-
             logger.info(f"Analyzing possibilities round {k}")
             logger.debug(f"Stops to evaluate count: {len(marked_stops)}")
 
             # Copy bag from previous round
             bag_round_stop[k] = deepcopy(bag_round_stop[k - 1])
 
-            # Accumulate routes serving marked stops from previous round
-            route_marked_stops = self.accumulate_routes(marked_stops)
+            if len(marked_stops) > 0:
+                # Accumulate routes serving marked stops from previous round
+                route_marked_stops = self.accumulate_routes(marked_stops)
 
-            # Traverse each route
-            bag_round_stop, marked_stops_trips = self.traverse_route(
-                deepcopy(bag_round_stop), k, route_marked_stops
-            )
+                # Traverse each route
+                bag_round_stop, marked_stops_trips = self.traverse_route(
+                    bag_round_stop, k, route_marked_stops
+                )
 
-            # Now add footpath transfers and update
-            bag_round_stop, marked_stops_transfers = self.add_transfer_time(
-                deepcopy(bag_round_stop), k, marked_stops_trips
-            )
+                # Now add footpath transfers and update
+                bag_round_stop, marked_stops_transfers = self.add_transfer_time(
+                    bag_round_stop, k, marked_stops_trips
+                )
 
-            marked_stops = set(marked_stops_trips).union(marked_stops_transfers)
+                marked_stops = set(marked_stops_trips).union(marked_stops_transfers)
+
+        logger.info("Finish round-based algorithm to create bag with best labels")
+        logger.info(f"Running time: {perf_counter() - s}")
 
         return bag_round_stop
 
@@ -109,7 +110,7 @@ class McRaptorAlgorithm:
         """
         logger.debug(f"Traverse routes for round {k}")
 
-        new_marked_stops = []
+        new_marked_stops = set()
 
         for (marked_route, marked_stop) in tqdm(route_marked_stops):
             # Traversing through route from marked stop
@@ -139,17 +140,15 @@ class McRaptorAlgorithm:
 
                 # Mark stop if bag is updated
                 if bag_update:
-                    if (
-                        current_stop != marked_stop
-                        and current_stop not in new_marked_stops
-                    ):
-                        new_marked_stops.append(current_stop)
+                    if current_stop != marked_stop:
+                        new_marked_stops.add(current_stop)
 
                 # Step 3: merge B_{k-1}(p) into B_r
                 route_bag.merge(bag_round_stop[k - 1][current_stop])
 
                 # Assign trips to all newly added labels in route_bag
                 # This is the trip on which we 'hop-on'
+                updated_labels = []
                 for label in route_bag.labels:
                     earliest_trip = marked_route.earliest_trip(
                         label.earliest_arrival_time, current_stop
@@ -160,9 +159,8 @@ class McRaptorAlgorithm:
                         if label.trip != earliest_trip:
                             label.from_stop = current_stop
                         label.update_trip(earliest_trip)
-                    else:
-                        # Make label unusable as there is no trip leaving from this stop
-                        label.set_infinite()
+                        updated_labels.append(label)
+                route_bag.labels = updated_labels
 
         logger.debug(f"{len(new_marked_stops)} reachable stops added")
 
@@ -178,7 +176,7 @@ class McRaptorAlgorithm:
 
         logger.debug("Add transfer times...")
 
-        marked_stops_transfers = []
+        marked_stops_transfers = set()
 
         # Add in transfers to other platforms
         for stop in tqdm(marked_stops):
@@ -206,8 +204,7 @@ class McRaptorAlgorithm:
 
                 # Mark stop if bag is updated
                 if bag_update:
-                    if other_stop not in marked_stops_transfers:
-                        marked_stops_transfers.append(other_stop)
+                    marked_stops_transfers.add(other_stop)
 
         logger.debug(f"{len(marked_stops_transfers)} transferable stops added")
 
@@ -238,7 +235,7 @@ def best_legs_to_destination_station(
         (stop, label) for stop in to_stops for label in last_round_bag[stop].labels
     ]
 
-    # TODO: Use merge function on Bag
+    # TODO Use merge function on Bag
     # Pareto optimal labels
     pareto_optimal_labels = pareto_set_labels([label for (_, label) in best_labels])
     pareto_optimal_labels = [

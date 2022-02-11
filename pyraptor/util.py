@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 
-TRANSFER_COST = 3 * 60  # Default transfer time is 3 minutes
+TRANSFER_COST = 2 * 60  # Default transfer time is 2 minutes
 LARGE_NUMBER = 999999
 TRANSFER_TRIP = None
 

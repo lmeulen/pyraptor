@@ -4,8 +4,9 @@ from copy import copy
 
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable, read_timetable
+from pyraptor.dao.timetable import read_timetable
 from pyraptor.model.base import print_journeys
+from pyraptor.model.structures import Timetable, Journey
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     reconstruct_journeys,
@@ -95,7 +96,7 @@ def run_mcraptor(
     destination_station: str,
     dep_secs: int,
     rounds: int,
-):
+) -> List[Journey]:
     """
     Perform the McRaptor algorithm.
 
