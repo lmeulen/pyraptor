@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v1.0.0 (2022-02-11)
+### Feature
+* Add McRAPTOR and align RAPTOR with paper ([#20](https://github.com/lmeulen/pyraptor/issues/20)) ([`591d91d`](https://github.com/lmeulen/pyraptor/commit/591d91d778574ee155dda8945a8473e69a1ffe77))
+
+### Breaking
+* Add McRAPTOR and align RAPTOR with paper ([#20](https://github.com/lmeulen/pyraptor/issues/20)) ([`591d91d`](https://github.com/lmeulen/pyraptor/commit/591d91d778574ee155dda8945a8473e69a1ffe77))
+
 ## v0.3.0 (2022-01-25)
 ### Feature
 * Trigger release ([#18](https://github.com/lmeulen/pyraptor/issues/18)) ([`7f06d32`](https://github.com/lmeulen/pyraptor/commit/7f06d326b6a1903792742356a52bed9150a14ba5))
