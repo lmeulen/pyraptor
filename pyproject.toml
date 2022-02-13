@@ -16,7 +16,6 @@ python = "^3.8"
 loguru = "^0.6.0"
 pandas = "^1.4.0"
 joblib = "^1.0.1"
-tqdm = "^4.62.3"
 
 [tool.poetry.dev-dependencies]
 coverage = "^5.5"

@@ -40,29 +40,6 @@ class Label:
         return f"Label(earliest_arrival_time={self.earliest_arrival_time}, trip={self.trip}, from_stop={self.from_stop})"
 
 
-# @dataclass
-# class Leg:
-#     """Leg"""
-
-#     from_stop: Stop
-#     to_stop: Stop
-#     trip: Trip
-
-#     @property
-#     def dep(self):
-#         """Departure time"""
-#         return [
-#             tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
-#         ][0]
-
-#     @property
-#     def arr(self):
-#         """Arrival time"""
-#         return [
-#             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
-#         ][0]
-
-
 class RaptorAlgorithm:
     """RAPTOR Algorithm"""
 
@@ -110,15 +87,11 @@ class RaptorAlgorithm:
             )
             logger.debug(f"{len(marked_trip_stops)} reachable stops added")
 
-            # pprint(bag_round_stop)
-
             # Add footpath transfers and update
             bag_round_stop, marked_transfer_stops = self.add_transfer_time(
                 bag_round_stop, k, marked_trip_stops
             )
             logger.debug(f"{len(marked_transfer_stops)} transferable stops added")
-
-            # pprint(bag_round_stop)
 
             marked_stops = set(marked_trip_stops).union(marked_transfer_stops)
             logger.debug(f"{len(marked_stops)} stops to evaluate in next round")
@@ -167,8 +140,6 @@ class RaptorAlgorithm:
         # For each route
         for (marked_route, marked_stop) in route_marked_stops:
 
-            # logger.debug(f"Marked {marked_route}, {marked_stop}")
-
             # Current trip for this marked stop
             current_trip = None
 
@@ -178,10 +149,6 @@ class RaptorAlgorithm:
             boarding_stop = None
 
             for current_stop_index, current_stop in enumerate(remaining_stops_in_route):
-                # logger.debug(
-                #     f"Processing stop {current_stop} ({current_stop_index+1}/{len(remaining_stops_in_route)})"
-                # )
-
                 # Can the label be improved in this round?
                 n_evaluations += 1
 
@@ -198,15 +165,12 @@ class RaptorAlgorithm:
                         #   t_k(next_stop) = t_arr(t, pi)
                         #   t_star(p_i) = t_arr(t, pi)
 
-                        # logger.debug(f"Improvement of {current_stop}, current {current_trip}")
-                        # logger.debug(f"From {self.bag_star[current_stop]}")
                         bag_round_stop[k][current_stop].update(
                             new_arrival_time, current_trip, boarding_stop
                         )
                         self.bag_star[current_stop].update(
                             new_arrival_time, current_trip, boarding_stop
                         )
-                        # logger.debug(f"To: {bag_round_stop[k][current_stop]}")
 
                         # Logging
                         n_improvements += 1
@@ -227,7 +191,6 @@ class RaptorAlgorithm:
                 ):
                     current_trip = earliest_trip_stop_time.trip
                     boarding_stop = current_stop
-                    # logger.debug(f"Set current {current_trip}, {boarding_stop}")
 
         logger.debug(f"- Evaluations    : {n_evaluations}")
         logger.debug(f"- Improvements   : {n_improvements}")
