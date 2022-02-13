@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.0.2 (2022-02-13)
+### Fix
+* Remove invalid journeys ([`c40659e`](https://github.com/lmeulen/pyraptor/commit/c40659e932edd901ae9a9684012578d1d6052de3))
+
 ## v1.0.1 (2022-02-13)
 ### Fix
 * Set Label and Bag to frozen to prevent pointer errors ([#21](https://github.com/lmeulen/pyraptor/issues/21)) ([`44a34a8`](https://github.com/lmeulen/pyraptor/commit/44a34a886cefc0b00fa6cf9168ee89ae3ae68589))
