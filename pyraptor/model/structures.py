@@ -508,7 +508,7 @@ def pareto_set_labels(labels: List[Label]):
     return [copy(label) for i, label in enumerate(labels) if is_efficient[i]]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Label:
     """Label"""
 
@@ -524,55 +524,64 @@ class Label:
         """Criteria"""
         return [self.earliest_arrival_time, self.fare, self.n_trips]
 
-    def update(self, earliest_arrival_time=None, fare_addition=None):
+    def update(self, earliest_arrival_time=None, fare_addition=None, from_stop=None):
         """Update earliest arrival time and add fare_addition to fare"""
-        if earliest_arrival_time is not None:
-            self.earliest_arrival_time = earliest_arrival_time
-        if fare_addition is not None:
-            self.fare += fare_addition
+        return copy(
+            Label(
+                earliest_arrival_time=earliest_arrival_time
+                if earliest_arrival_time is not None
+                else self.earliest_arrival_time,
+                fare=self.fare + fare_addition
+                if fare_addition is not None
+                else self.fare,
+                trip=self.trip,
+                from_stop=from_stop if from_stop is not None else self.from_stop,
+                n_trips=self.n_trips,
+                infinite=self.infinite,
+            )
+        )
 
-    def update_trip(self, trip: Trip):
+    def update_trip(self, trip: Trip, current_stop: Stop):
         """Update trip"""
-        if self.trip != trip:
-            self.n_trips += 1
-        self.trip = trip
+        return copy(
+            Label(
+                earliest_arrival_time=self.earliest_arrival_time,
+                fare=self.fare,
+                trip=trip,
+                from_stop=current_stop if self.trip != trip else self.from_stop,
+                n_trips=self.n_trips + 1 if self.trip != trip else self.n_trips,
+                infinite=self.infinite,
+            )
+        )
 
-    def set_infinite(self):
-        """Makes label dominated by any other label"""
-        self.earliest_arrival_time = LARGE_NUMBER
-        self.fare = LARGE_NUMBER
-        self.trip = None
-        self.n_trips = LARGE_NUMBER
-        self.infinite = True
 
-
-@dataclass
+@dataclass(frozen=True)
 class Bag:
     """
     Bag B(k,p) or route bag B_r
     """
 
     labels: List[Label] = field(default_factory=list)
+    update: bool = False
 
     def __len__(self):
         return len(self.labels)
 
     def __repr__(self):
-        return f"Bag({self.labels})"
+        return f"Bag({self.labels}, update={self.update})"
 
     def add(self, label: Label):
         """Add"""
         self.labels.append(label)
 
-    def merge(self, other_bag: Bag) -> bool:
+    def merge(self, other_bag: Bag) -> Bag:
         """Merge other bag in bag and return true if bag is updated"""
         pareto_labels = self.labels + other_bag.labels
         if len(pareto_labels) == 0:
-            return False
+            return Bag(labels=[], update=False)
         pareto_labels = pareto_set_labels(pareto_labels)
         bag_update = True if pareto_labels != self.labels else False
-        self.labels = pareto_labels
-        return bag_update
+        return Bag(labels=pareto_labels, update=bag_update)
 
     def labels_with_trip(self):
         """All labels with trips, i.e. all labels that are reachable with a trip with given criterion"""
