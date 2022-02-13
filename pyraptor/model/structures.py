@@ -629,6 +629,14 @@ class Journey:
             if (leg.trip is not None) and (leg.from_stop.station != leg.to_stop.station)
         ]
 
+    def is_valid(self):
+        """Is valid journey"""
+        self.remove_transfer_legs()
+        for index in range(len(self.legs)-1):
+            if self.legs[index].arr > self.legs[index+1].dep:
+                return False
+        return True
+
     def from_stop(self) -> Stop:
         """Origin stop of Journey"""
         return self.legs[0].from_stop

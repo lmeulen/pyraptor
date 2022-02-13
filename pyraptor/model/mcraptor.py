@@ -294,7 +294,8 @@ def reconstruct_journeys(
             # End of journey if we are at origin stop or journey is not feasible
             if current_leg.trip is None or current_leg.from_stop in from_stops:
                 jrny.remove_transfer_legs()
-                yield jrny
+                if jrny.is_valid() is True:
+                    yield jrny
                 continue
 
             # Loop trough each new leg

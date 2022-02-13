@@ -51,6 +51,8 @@ arrival time, fare and number of trips.
 
 > `python pyraptor/query_mcraptor.py -or "Vlissingen" -d "Akkrum" -t "08:30:00"`
 
+> `python pyraptor/query_mcraptor.py -or "Obdam" -d "Akkrum" -t "08:30:00" -r 7`
+
 # Notes
 
 - The current version doesn't implement target pruning as we are interested in efficiently querying all targets/destinations after running RAPTOR algorithm.
