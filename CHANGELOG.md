@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.0.1 (2022-02-13)
+### Fix
+* Set Label and Bag to frozen to prevent pointer errors ([#21](https://github.com/lmeulen/pyraptor/issues/21)) ([`44a34a8`](https://github.com/lmeulen/pyraptor/commit/44a34a886cefc0b00fa6cf9168ee89ae3ae68589))
+
 ## v1.0.0 (2022-02-11)
 ### Feature
 * Add McRAPTOR and align RAPTOR with paper ([#20](https://github.com/lmeulen/pyraptor/issues/20)) ([`591d91d`](https://github.com/lmeulen/pyraptor/commit/591d91d778574ee155dda8945a8473e69a1ffe77))
