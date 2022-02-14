@@ -1,4 +1,4 @@
-"""Test Range Query"""
+"""Test Range Query or McRaptor"""
 from pyraptor import query_range_mcraptor
 from pyraptor.model.structures import Timetable
 

@@ -1,4 +1,4 @@
-"""Test Range Query"""
+"""Test Range Query for Raptor"""
 from pyraptor import query_range_raptor
 from pyraptor.model.structures import Timetable
 

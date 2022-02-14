@@ -1,4 +1,4 @@
-"""Test Query"""
+"""Test Query Raptor"""
 from pyraptor import query_raptor
 from pyraptor.model.structures import Timetable
 
