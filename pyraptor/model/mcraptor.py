@@ -320,3 +320,30 @@ def reconstruct_journeys(
     journeys = [jrny for jrny in loop(bag_round_stop, k, journeys)]
 
     return journeys
+
+
+def pareto_optimal_journeys(journeys: List[Journey]) -> List[Journey]:
+    """
+    Select all pareto optimal journeys from a list of journeys.
+
+    Example:
+        Given
+            Journey from 5:00 to 7:00, fare €0
+            Journey from 5:30 to 7:30, fare €0
+            Journey from 5:30 to 6:30, fare €5
+            Journey from 5:30 to 7:00, fare €0
+        we expect the first and second journey to be removed as they are
+        dominated by the last journey.
+    """
+    best_journeys = list()
+
+    for jrny in journeys:
+        # Check if this journey is dominated by any other journey
+        dominated = [
+            True if other_jrny.dominates(jrny) else False for other_jrny in journeys
+        ]
+        if not any(dominated) and jrny not in best_journeys:
+            best_journeys.append(jrny)
+
+    best_journeys = sorted(best_journeys)
+    return best_journeys

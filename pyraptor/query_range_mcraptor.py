@@ -1,16 +1,17 @@
 """Run range query on RAPTOR algorithm"""
 import argparse
 from typing import Dict, List
+from copy import copy
 
 from loguru import logger
 
 from pyraptor.dao.timetable import read_timetable
-from pyraptor.model.structures import Journey, Timetable
-from pyraptor.model.raptor import (
-    RaptorAlgorithm,
-    best_stop_at_target_station,
-    reconstruct_journey,
-    is_dominated,
+from pyraptor.model.structures import Timetable, Journey
+from pyraptor.model.mcraptor import (
+    McRaptorAlgorithm,
+    best_legs_to_destination_station,
+    pareto_optimal_journeys,
+    reconstruct_journeys,
 )
 from pyraptor.util import str2sec, sec2str
 
@@ -92,8 +93,7 @@ def main(
     logger.debug(f"Departure time range (s.)  : ({dep_secs_min}, {dep_secs_max})")
 
     # Find route between two stations for time range, i.e. Range Query
-    # traveltime, final_dest, stop_bag
-    journeys_to_destinations = run_range_raptor(
+    journeys_to_destinations = run_range_mcraptor(
         timetable,
         origin_station,
         dep_secs_min,
@@ -101,13 +101,13 @@ def main(
         rounds,
     )
 
-    # All destinations are present in labels, so this is only for logging purposes
+    # All destinations are calculated, however, we only print one for logging purposes
     logger.info(f"Journeys to destination station '{destination_station}'")
     for jrny in journeys_to_destinations[destination_station]:
         jrny.print()
 
 
-def run_range_raptor(
+def run_range_mcraptor(
     timetable: Timetable,
     origin_station: str,
     dep_secs_min: int,
@@ -115,7 +115,7 @@ def run_range_raptor(
     rounds: int,
 ) -> Dict[str, List[Journey]]:
     """
-    Perform the RAPTOR algorithm for a range query
+    Perform the McRAPTOR algorithm for a range query
     """
 
     # Get stops for origins and destinations
@@ -142,30 +142,33 @@ def run_range_raptor(
     journeys_to_destinations = {
         station_name: [] for station_name, _ in destination_stops.items()
     }
-    last_round_labels = {
-        station_name: None for station_name, _ in destination_stops.items()
-    }
 
+    # Find Pareto-optimal journeys for all possible departure times
     for dep_index, dep_secs in enumerate(potential_dep_secs):
         logger.info(f"Processing {dep_index} / {len(potential_dep_secs)}")
-        logger.info(f"Analyzing best journey for departure time {dep_secs}")
+        logger.info(f"Analyzing best journey for departure time {sec2str(dep_secs)}")
 
         # Run Round-Based Algorithm
-        raptor = RaptorAlgorithm(timetable)
-        bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
-        best_labels = bag_round_stop[rounds]
+        mcraptor = McRaptorAlgorithm(timetable)
+        bag_round_stop = mcraptor.run(from_stops, dep_secs, rounds)
+        last_round_bag = copy(bag_round_stop[rounds])
 
         # Determine the best destination ID, destination is a platform
         for destination_station_name, to_stops in destination_stops.items():
-            dest_stop = best_stop_at_target_station(to_stops, best_labels)
+            destination_legs = best_legs_to_destination_station(
+                to_stops, last_round_bag
+            )
 
-            if dest_stop != 0:
-                journey = reconstruct_journey(dest_stop, best_labels)
-                last_round_journey = last_round_labels[destination_station_name]
-                last_round_labels[destination_station_name] = journey
+            if len(destination_legs) != 0:
+                journeys = reconstruct_journeys(
+                    from_stops, destination_legs, bag_round_stop, k=rounds
+                )
+                journeys_to_destinations[destination_station_name].extend(journeys)
 
-                if not is_dominated(last_round_journey, journey):
-                    journeys_to_destinations[destination_station_name].append(journey)
+    # Keep Pareto-optimal journeys
+    for destination_station_name, journeys in journeys_to_destinations.items():
+        best_journeys = pareto_optimal_journeys(journeys)
+        journeys_to_destinations[destination_station_name] = best_journeys
 
     return journeys_to_destinations
 

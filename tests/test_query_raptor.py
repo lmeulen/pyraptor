@@ -1,4 +1,4 @@
-"""Test Query"""
+"""Test Query Raptor"""
 from pyraptor import query_raptor
 from pyraptor.model.structures import Timetable
 
@@ -24,6 +24,6 @@ def test_query_raptor(default_timetable: Timetable):
     journey = journey_to_destinations[destination_station]
     assert journey is not None, "destination should be reachable"
 
-    query_raptor.print_journey(journey, dep_secs)
+    journey.print(dep_secs=dep_secs)
 
     assert len(journey) == 3, "should have 3 trips in journey"
