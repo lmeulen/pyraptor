@@ -34,4 +34,4 @@ def test_query_range_mcraptor(default_timetable: Timetable):
     ), "should have 2 travel options"
 
     for journey in journeys_to_destinations[destination_station][::-1]:
-        assert len(journey) == 3, "should use 2 trips from A to F"
+        assert len(journey) == 2, "should use 2 trips from A to F"
