@@ -32,6 +32,8 @@ RAPTOR returns a single journey with the earliest arrival time given the query t
 
 > `python pyraptor/query_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
 
+> `python pyraptor/query_raptor.py -or "Breda" -d "Amsterdam Centraal" -t "08:30:00"`
+
 #### rRAPTOR query
 
 rRAPTOR returns a set of best journeys with a given query time range.
@@ -40,6 +42,8 @@ Journeys that are dominated by other journeys in the time range are removed.
 **Examples**
  
 > `python pyraptor/query_range_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
+
+> `python pyraptor/query_range_raptor.py -or "Breda" -d "Amsterdam Centraal" -st "08:00:00" -et "08:30:00"`
 
 #### McRaptor query
 
