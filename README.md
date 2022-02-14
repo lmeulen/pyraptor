@@ -52,6 +52,8 @@ arrival time, fare and number of trips.
 
 > `python pyraptor/query_mcraptor.py -or "Vlissingen" -d "Akkrum" -t "08:30:00"`
 
+> `python pyraptor/query_mcraptor.py -or "Obdam" -d "Akkrum" -t "08:30:00" -r 7`
+
 #### rMcRaptor query
 
 Range version of McRaptor, i.e. it returns a set of Pareto-optimal journeys within a departure time window.
@@ -61,7 +63,6 @@ Range version of McRaptor, i.e. it returns a set of Pareto-optimal journeys with
 > `python pyraptor/query_range_mcraptor.py -or "Breda" -d "Amsterdam Centraal" -st "08:15:00" -et "08:30:00"`
 
 > `python pyraptor/query_range_mcraptor.py -or "Vlissingen" -d "Akkrum" -st "08:15:00" -et "08:30:00"`
-
 
 # Notes
 

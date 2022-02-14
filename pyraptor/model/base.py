@@ -51,3 +51,4 @@ def print_journey(journey: Journey, dep_secs=None):
             sec2str(dep_secs),
         )
     logger.info(msg)
+    logger.info("")
