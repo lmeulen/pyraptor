@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.1.0 (2022-02-14)
+### Feature
+* Add range query for McRaptor ([#22](https://github.com/lmeulen/pyraptor/issues/22)) ([`d9ca1de`](https://github.com/lmeulen/pyraptor/commit/d9ca1de8533780abeaede2c300031284626d1084))
+
 ## v1.0.2 (2022-02-13)
 ### Fix
 * Remove invalid journeys ([`c40659e`](https://github.com/lmeulen/pyraptor/commit/c40659e932edd901ae9a9684012578d1d6052de3))
