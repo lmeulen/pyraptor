@@ -1,11 +1,12 @@
 """Run range query on RAPTOR algorithm"""
 import argparse
+from typing import Dict, List
 from copy import copy
 
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable, read_timetable
-from pyraptor.model.base import print_journeys
+from pyraptor.dao.timetable import read_timetable
+from pyraptor.model.structures import Timetable, Journey
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     best_legs_to_destination_station,
@@ -57,7 +58,7 @@ def parse_arguments():
         "-r",
         "--rounds",
         type=int,
-        default=4,
+        default=5,
         help="Number of rounds to execute the RAPTOR algorithm",
     )
     arguments = parser.parse_args()
@@ -92,7 +93,6 @@ def main(
     logger.debug(f"Departure time range (s.)  : ({dep_secs_min}, {dep_secs_max})")
 
     # Find route between two stations for time range, i.e. Range Query
-    # traveltime, final_dest, stop_bag
     journeys_to_destinations = run_range_mcraptor(
         timetable,
         origin_station,
@@ -103,7 +103,8 @@ def main(
 
     # All destinations are calculated, however, we only print one for logging purposes
     logger.info(f"Journeys to destination station '{destination_station}'")
-    print_journeys(journeys_to_destinations[destination_station])
+    for jrny in journeys_to_destinations[destination_station]:
+        jrny.print()
 
 
 def run_range_mcraptor(
@@ -112,7 +113,7 @@ def run_range_mcraptor(
     dep_secs_min: int,
     dep_secs_max: int,
     rounds: int,
-):
+) -> Dict[str, List[Journey]]:
     """
     Perform the McRAPTOR algorithm for a range query
     """
@@ -154,7 +155,9 @@ def run_range_mcraptor(
 
         # Determine the best destination ID, destination is a platform
         for destination_station_name, to_stops in destination_stops.items():
-            destination_legs = best_legs_to_destination_station(to_stops, last_round_bag)
+            destination_legs = best_legs_to_destination_station(
+                to_stops, last_round_bag
+            )
 
             if len(destination_legs) != 0:
                 journeys = reconstruct_journeys(

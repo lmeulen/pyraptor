@@ -64,6 +64,8 @@ Range version of McRaptor, i.e. it returns a set of Pareto-optimal journeys with
 
 > `python pyraptor/query_range_mcraptor.py -or "Vlissingen" -d "Akkrum" -st "08:15:00" -et "08:30:00"`
 
+> `python pyraptor/query_range_mcraptor.py -or "Obdam" -d "Akkrum" -st "08:00:00" -et "09:00:00"`
+
 # Notes
 
 - The current version doesn't implement target pruning as we are interested in efficiently querying all targets/destinations after running RAPTOR algorithm.

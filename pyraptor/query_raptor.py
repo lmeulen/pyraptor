@@ -4,14 +4,13 @@ from typing import Dict
 
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable, read_timetable
-from pyraptor.model.base import print_journey
+from pyraptor.dao.timetable import read_timetable
+from pyraptor.model.structures import Journey, Station, Timetable
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
     reconstruct_journey,
     best_stop_at_target_station,
 )
-from pyraptor.model.structures import Journey, Station
 from pyraptor.util import str2sec
 
 
@@ -46,7 +45,7 @@ def parse_arguments():
         "-r",
         "--rounds",
         type=int,
-        default=4,
+        default=5,
         help="Number of rounds to execute the RAPTOR algorithm",
     )
     arguments = parser.parse_args()
@@ -85,7 +84,7 @@ def main(
     )
 
     # Print journey to destination
-    print_journey(journey_to_destinations[destination_station], dep_secs)
+    journey_to_destinations[destination_station].print(dep_secs=dep_secs)
 
 
 def run_raptor(

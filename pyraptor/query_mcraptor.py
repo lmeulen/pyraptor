@@ -6,7 +6,6 @@ from copy import copy
 from loguru import logger
 
 from pyraptor.dao.timetable import read_timetable
-from pyraptor.model.base import print_journeys
 from pyraptor.model.structures import Timetable, Journey
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
@@ -47,7 +46,7 @@ def parse_arguments():
         "-r",
         "--rounds",
         type=int,
-        default=4,
+        default=5,
         help="Number of rounds to execute the RAPTOR algorithm",
     )
     arguments = parser.parse_args()
@@ -88,7 +87,8 @@ def main(
 
     # Output journey
     if len(journeys) != 0:
-        print_journeys(journeys, dep_secs)
+        for jrny in journeys:
+            jrny.print(dep_secs=dep_secs)
 
 
 def run_mcraptor(

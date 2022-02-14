@@ -1,5 +1,4 @@
 """McRAPTOR algorithm"""
-from operator import attrgetter
 from typing import List, Tuple, Dict
 from copy import copy, deepcopy
 from time import perf_counter
@@ -340,7 +339,9 @@ def pareto_optimal_journeys(journeys: List[Journey]) -> List[Journey]:
 
     for jrny in journeys:
         # Check if this journey is dominated by any other journey
-        dominated = [True if other_jrny.dominates(jrny) else False for other_jrny in journeys]
+        dominated = [
+            True if other_jrny.dominates(jrny) else False for other_jrny in journeys
+        ]
         if not any(dominated) and jrny not in best_journeys:
             best_journeys.append(jrny)
 

@@ -613,7 +613,7 @@ class Journey:
         return iter(self.legs)
 
     def __lt__(self, other):
-         return self.dep() < other.dep()
+        return self.dep() < other.dep()
 
     def number_of_trips(self):
         """Return number of distinct trips"""
@@ -635,8 +635,8 @@ class Journey:
     def is_valid(self):
         """Is valid journey"""
         self.remove_transfer_legs()
-        for index in range(len(self.legs)-1):
-            if self.legs[index].arr > self.legs[index+1].dep:
+        for index in range(len(self.legs) - 1):
+            if self.legs[index].arr > self.legs[index + 1].dep:
                 return False
         return True
 
@@ -669,7 +669,8 @@ class Journey:
                 and (self.arr() <= jrny.arr())
                 and (self.fare() <= jrny.fare())
                 and (self.number_of_trips() <= jrny.number_of_trips())
-            ) and (self != jrny)
+            )
+            and (self != jrny)
             else False
         )
 
@@ -710,3 +711,4 @@ class Journey:
                 sec2str(dep_secs),
             )
         logger.info(msg)
+        logger.info("")

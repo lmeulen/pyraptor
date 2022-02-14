@@ -23,7 +23,8 @@ def test_query_range_raptor(default_timetable: Timetable):
         dep_secs_max,
         rounds,
     )
-    query_range_raptor.print_journeys(journeys_to_destinations[destination_station])
+    for jrny in journeys_to_destinations[destination_station]:
+        jrny.print()
 
     assert (
         len(journeys_to_destinations.keys()) == 3

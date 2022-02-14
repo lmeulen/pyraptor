@@ -1,6 +1,5 @@
 """Test Query McRaptor"""
 from pyraptor import query_mcraptor
-from pyraptor.model.base import print_journeys
 from pyraptor.model.mcraptor import pareto_set_labels
 from pyraptor.model.structures import Stop, Label
 
@@ -28,7 +27,8 @@ def test_run_mcraptor_with_transfers_and_fares(timetable_with_transfers_and_fare
         departure_time,
         rounds,
     )
-    print_journeys(journeys, departure_time)
+    for jrny in journeys:
+        jrny.print(departure_time)
 
     assert len(journeys) == 3, "should have 3 journeys"
 
@@ -49,7 +49,8 @@ def test_run_mcraptor_many_transfers(timetable_with_many_transfers):
         departure_time,
         rounds,
     )
-    print_journeys(journeys, departure_time)
+    for jrny in journeys:
+        jrny.print(departure_time)
 
     assert len(journeys) == 1, "should have 1 journey"
 

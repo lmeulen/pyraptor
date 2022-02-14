@@ -1,11 +1,11 @@
 """Run range query on RAPTOR algorithm"""
 import argparse
-from typing import Dict
+from typing import Dict, List
 
 from loguru import logger
 
-from pyraptor.dao.timetable import Timetable, read_timetable
-from pyraptor.model.base import print_journey
+from pyraptor.dao.timetable import read_timetable
+from pyraptor.model.structures import Journey, Timetable
 from pyraptor.model.raptor import (
     RaptorAlgorithm,
     best_stop_at_target_station,
@@ -57,7 +57,7 @@ def parse_arguments():
         "-r",
         "--rounds",
         type=int,
-        default=4,
+        default=5,
         help="Number of rounds to execute the RAPTOR algorithm",
     )
     arguments = parser.parse_args()
@@ -103,7 +103,8 @@ def main(
 
     # All destinations are present in labels, so this is only for logging purposes
     logger.info(f"Journeys to destination station '{destination_station}'")
-    print_journeys(journeys_to_destinations[destination_station])
+    for jrny in journeys_to_destinations[destination_station]:
+        jrny.print()
 
 
 def run_range_raptor(
@@ -112,7 +113,7 @@ def run_range_raptor(
     dep_secs_min: int,
     dep_secs_max: int,
     rounds: int,
-):
+) -> Dict[str, List[Journey]]:
     """
     Perform the RAPTOR algorithm for a range query
     """
@@ -167,12 +168,6 @@ def run_range_raptor(
                     journeys_to_destinations[destination_station_name].append(journey)
 
     return journeys_to_destinations
-
-
-def print_journeys(journeys_to_destinations: Dict[str, list]):
-    """Print journeys"""
-    for journey in journeys_to_destinations[::-1]:
-        print_journey(journey)
 
 
 if __name__ == "__main__":
