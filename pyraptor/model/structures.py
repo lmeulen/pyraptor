@@ -11,7 +11,7 @@ import attr
 import numpy as np
 from loguru import logger
 
-from pyraptor.util import LARGE_NUMBER
+from pyraptor.util import LARGE_NUMBER, sec2str
 
 
 def same_type_and_id(first, second):
@@ -603,6 +603,9 @@ class Journey:
     def __iter__(self):
         return iter(self.legs)
 
+    def __lt__(self, other):
+         return self.dep() < other.dep()
+
     def number_of_trips(self):
         """Return number of distinct trips"""
         trips = set([l.trip for l in self.legs])
@@ -639,3 +642,54 @@ class Journey:
     def arr(self):
         """Arrival time"""
         return self.legs[-1].arr
+
+    def dominates(self, jrny: Journey):
+        """Dominates other Journey"""
+        return (
+            True
+            if (
+                (self.dep() >= jrny.dep())
+                and (self.arr() <= jrny.arr())
+                and (self.fare() <= jrny.fare())
+                and (self.number_of_trips() <= jrny.number_of_trips())
+            ) and (self != jrny)
+            else False
+        )
+
+    def print(self, dep_secs=None):
+        """Print the given journey to logger info"""
+
+        logger.info("Journey:")
+
+        if len(self) == 0:
+            logger.info("No journey available")
+            return
+
+        # Print all legs in journey
+        for leg in self:
+            msg = (
+                str(sec2str(leg.dep))
+                + " "
+                + leg.from_stop.station.name.ljust(20)
+                + "(p. "
+                + str(leg.from_stop.platform_code).rjust(3)
+                + ") TO "
+                + str(sec2str(leg.arr))
+                + " "
+                + leg.to_stop.station.name.ljust(20)
+                + "(p. "
+                + str(leg.to_stop.platform_code).rjust(3)
+                + ") WITH "
+                + str(leg.trip.hint)
+            )
+            logger.info(msg)
+
+        logger.info(f"Fare: €{self.fare()}")
+
+        msg = f"Duration: {sec2str(self.arr() - self.dep())}"
+        if dep_secs:
+            msg += " ({} from request time {})".format(
+                sec2str(self.arr() - dep_secs),
+                sec2str(dep_secs),
+            )
+        logger.info(msg)

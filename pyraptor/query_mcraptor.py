@@ -115,9 +115,9 @@ def run_mcraptor(
     # Run Round-Based Algorithm
     raptor = McRaptorAlgorithm(timetable)
     bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
+    last_round_bag = copy(bag_round_stop[rounds])
 
     # Determine the best destination ID, destination is a platform
-    last_round_bag = copy(bag_round_stop[rounds])
     destination_legs = best_legs_to_destination_station(to_stops, last_round_bag)
 
     if len(destination_legs) != 0:

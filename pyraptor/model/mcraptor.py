@@ -1,10 +1,11 @@
 """McRAPTOR algorithm"""
+from operator import attrgetter
 from typing import List, Tuple, Dict
 from copy import deepcopy
 from time import perf_counter
 
 from loguru import logger
-from tqdm import tqdm
+
 from pyraptor.dao.timetable import Timetable
 from pyraptor.model.structures import (
     Stop,
@@ -112,7 +113,7 @@ class McRaptorAlgorithm:
 
         new_marked_stops = set()
 
-        for (marked_route, marked_stop) in tqdm(route_marked_stops):
+        for (marked_route, marked_stop) in route_marked_stops:
             # Traversing through route from marked stop
             route_bag = Bag()
 
@@ -179,7 +180,7 @@ class McRaptorAlgorithm:
         marked_stops_transfers = set()
 
         # Add in transfers to other platforms
-        for stop in tqdm(marked_stops):
+        for stop in marked_stops:
             other_station_stops = [st for st in stop.station.stops if st != stop]
 
             for other_stop in other_station_stops:
@@ -306,3 +307,28 @@ def reconstruct_journeys(
     journeys = [jrny for jrny in loop(bag_round_stop, k, journeys)]
 
     return journeys
+
+
+def pareto_optimal_journeys(journeys: List[Journey]) -> List[Journey]:
+    """
+    Select all pareto optimal journeys from a list of journeys.
+
+    Example:
+        Given
+            Journey from 5:00 to 7:00, fare €0
+            Journey from 5:30 to 7:30, fare €0
+            Journey from 5:30 to 6:30, fare €5
+            Journey from 5:30 to 7:00, fare €0
+        we expect the first and second journey to be removed as they are
+        dominated by the last journey.
+    """
+    best_journeys = list()
+
+    for jrny in journeys:
+        # Check if this journey is dominated by any other journey
+        dominated = [True if other_jrny.dominates(jrny) else False for other_jrny in journeys]
+        if not any(dominated) and jrny not in best_journeys:
+            best_journeys.append(jrny)
+
+    best_journeys = sorted(best_journeys)
+    return best_journeys

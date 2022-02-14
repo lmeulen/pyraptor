@@ -7,7 +7,8 @@ This repository contains four applications:
 1. `pyraptor/gtfs/timetable.py` - Extract the timetable information for one operator from a GTFS dataset and write it to an optimized format for querying with RAPTOR.
 2. `pyraptor/query_raptor.py` - Get the best journey for a given origin, destination and desired departure time using RAPTOR
 3. `pyraptor/query_range_raptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using RAPTOR
-4. `pyraptor/query_mcraptor.py` - Get a list of the best journeys to all destinations for a given origin and desired departure time window using McRAPTOR
+4. `pyraptor/query_mcraptor.py` - Get a list of the Pareto-optimal journeys to all destinations for a given origin and a departure time using McRAPTOR
+5. `pyraptor/query_range_mcraptor.py` - Get a list of Pareto-optimal journeys to all destinations for a given origin and a departure time window using McRAPTOR
 
 ## Installation
 
@@ -29,7 +30,7 @@ RAPTOR returns a single journey with the earliest arrival time given the query t
 
 **Examples**
 
-> * `python pyraptor/query_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
+> `python pyraptor/query_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -t "08:30:00"`
 
 #### rRAPTOR query
 
@@ -38,7 +39,7 @@ Journeys that are dominated by other journeys in the time range are removed.
 
 **Examples**
  
-> `python pyraptor/query_range_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et > "08:30:00"`
+> `python pyraptor/query_range_raptor.py -or "Arnhem Zuid" -d "Oosterbeek" -st "08:00:00" -et "08:30:00"`
 
 #### McRaptor query
 
@@ -50,6 +51,17 @@ arrival time, fare and number of trips.
 > `python pyraptor/query_mcraptor.py -or "Breda" -d "Amsterdam Centraal" -t "08:30:00"`
 
 > `python pyraptor/query_mcraptor.py -or "Vlissingen" -d "Akkrum" -t "08:30:00"`
+
+#### rMcRaptor query
+
+Range version of McRaptor, i.e. it returns a set of Pareto-optimal journeys within a departure time window.
+
+**Examples**
+
+> `python pyraptor/query_range_mcraptor.py -or "Breda" -d "Amsterdam Centraal" -st "08:15:00" -et "08:30:00"`
+
+> `python pyraptor/query_range_mcraptor.py -or "Vlissingen" -d "Akkrum" -st "08:15:00" -et "08:30:00"`
+
 
 # Notes
 
