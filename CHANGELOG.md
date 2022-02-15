@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.2.0 (2022-02-15)
+### Feature
+* Add Transfers to timetable ([#23](https://github.com/lmeulen/pyraptor/issues/23)) ([`67dfa53`](https://github.com/lmeulen/pyraptor/commit/67dfa5373ccb2801fe22ba0429d1557f71b10d8d))
+
 ## v1.1.0 (2022-02-14)
 ### Feature
 * Add range query for McRaptor ([#22](https://github.com/lmeulen/pyraptor/issues/22)) ([`d9ca1de`](https://github.com/lmeulen/pyraptor/commit/d9ca1de8533780abeaede2c300031284626d1084))
