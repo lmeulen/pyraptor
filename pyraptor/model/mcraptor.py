@@ -342,7 +342,7 @@ def journeys_to_pandas(journeys: List[Journey]) -> pd.DataFrame:
                     start_station=leg.from_stop.name,
                     eind_station=leg.to_stop.name,
                     treinnummer=str(leg.trip.hint),
-                    category="Train",  # todo: add Treinformule in Trip
+                    category=leg.trip.formule,
                     vertrekspoor=leg.from_stop.platform_code,
                     aankomstspoor=leg.to_stop.platform_code,
                     reisoptie=index,

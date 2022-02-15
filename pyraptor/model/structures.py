@@ -246,6 +246,7 @@ class Trip:
     id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
+    formule = attr.ib(default=None) # e.g., Sprinter
 
     def __hash__(self):
         return hash(self.id)
