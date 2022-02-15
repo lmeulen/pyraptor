@@ -69,7 +69,7 @@ def main(
 
     timetable = read_timetable(input_folder)
 
-    logger.info("Calculating network from: {origin_station}")
+    logger.info(f"Calculating network from: {origin_station}")
 
     # Departure time seconds
     dep_secs = str2sec(departure_time)

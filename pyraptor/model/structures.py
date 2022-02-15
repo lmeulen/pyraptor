@@ -11,7 +11,7 @@ import attr
 import numpy as np
 from loguru import logger
 
-from pyraptor.util import LARGE_NUMBER, sec2str
+from pyraptor.util import sec2str
 
 
 def same_type_and_id(first, second):
@@ -28,6 +28,7 @@ class Timetable:
     trips: Trips = None
     trip_stop_times: TripStopTimes = None
     routes: Routes = None
+    transfers: Transfers = None
 
     def counts(self) -> None:
         """Print timetable counts"""
@@ -37,6 +38,7 @@ class Timetable:
         logger.debug("Trips      : {}", len(self.trips))
         logger.debug("Stops      : {}", len(self.stops))
         logger.debug("Stop Times : {}", len(self.trip_stop_times))
+        logger.debug("Transfers  : {}", len(self.transfers))
 
 
 @attr.s(repr=False, cmp=False)
@@ -427,6 +429,53 @@ class Routes:
     def get_routes_of_stop(self, stop: Stop):
         """Get routes of stop"""
         return self.stop_to_routes[stop]
+
+
+@attr.s(repr=False, cmp=False)
+class Transfer:
+    """Transfer"""
+
+    id = attr.ib(default=None)
+    from_stop = attr.ib(default=None)
+    to_stop = attr.ib(default=None)
+    layovertime = attr.ib(default=300)
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, trip):
+        return same_type_and_id(self, trip)
+
+    def __repr__(self):
+        return f"Transfer(from_stop={self.from_stop}, to_stop={self.to_stop}, layovertime={self.layovertime})"
+
+
+class Transfers:
+    """Transfers"""
+
+    def __init__(self):
+        self.set_idx = dict()
+        self.stop_to_stop_idx = dict()
+        self.last_id = 1
+
+    def __repr__(self):
+        return f"Transfers(n_transfers={len(self.set_idx)})"
+
+    def __getitem__(self, transfer_id):
+        return self.set_idx[transfer_id]
+
+    def __len__(self):
+        return len(self.set_idx)
+
+    def __iter__(self):
+        return iter(self.set_idx.values())
+
+    def add(self, transfer: Transfer):
+        """Add trip"""
+        transfer.id = self.last_id
+        self.set_idx[transfer.id] = transfer
+        self.stop_to_stop_idx[(transfer.from_stop, transfer.to_stop)] = transfer
+        self.last_id += 1
 
 
 @dataclass
