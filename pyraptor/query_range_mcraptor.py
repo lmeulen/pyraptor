@@ -6,7 +6,7 @@ from copy import copy
 from loguru import logger
 
 from pyraptor.dao.timetable import read_timetable
-from pyraptor.model.structures import Timetable, Journey
+from pyraptor.model.structures import Timetable, Journey, pareto_set
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     best_legs_to_destination_station,
@@ -14,6 +14,8 @@ from pyraptor.model.mcraptor import (
     reconstruct_journeys,
 )
 from pyraptor.util import str2sec, sec2str
+
+from pdb import set_trace
 
 
 def parse_arguments():
@@ -167,7 +169,7 @@ def run_range_mcraptor(
 
     # Keep Pareto-optimal journeys
     for destination_station_name, journeys in journeys_to_destinations.items():
-        best_journeys = pareto_optimal_journeys(journeys)
+        best_journeys = pareto_set(journeys, keep_equal=True)
         journeys_to_destinations[destination_station_name] = best_journeys
 
     return journeys_to_destinations

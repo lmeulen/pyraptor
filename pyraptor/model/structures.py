@@ -488,10 +488,12 @@ class Leg:
         return all([arrival_time_compatible, n_trips_compatible, criteria_compatible])
 
 
-def pareto_set_labels(labels: List[Label]):
+# TODO: should this be here?
+def pareto_set(labels: List[Label], keep_equal=False):
     """
     Find the pareto-efficient points
     :param labels: list with labels
+    :keep_equal return also labels with equal criteria
     :return: list with pairwise non-dominating labels
     """
 
@@ -500,9 +502,16 @@ def pareto_set_labels(labels: List[Label]):
     for i, label in enumerate(labels_criteria):
         if is_efficient[i]:
             # Keep any point with a lower cost
-            is_efficient[is_efficient] = np.any(
-                labels_criteria[is_efficient] < label, axis=1
-            )
+            if keep_equal:
+                # keep point with all labels equal or one lower
+                is_efficient[is_efficient] = np.any(
+                    labels_criteria[is_efficient] < label, axis=1
+                ) + np.all(labels_criteria[is_efficient] == label, axis=1)
+            else:
+                is_efficient[is_efficient] = np.any(
+                    labels_criteria[is_efficient] < label, axis=1
+                )
+
             is_efficient[i] = True  # And keep self
 
     return [copy(label) for i, label in enumerate(labels) if is_efficient[i]]
@@ -579,7 +588,7 @@ class Bag:
         pareto_labels = self.labels + other_bag.labels
         if len(pareto_labels) == 0:
             return Bag(labels=[], update=False)
-        pareto_labels = pareto_set_labels(pareto_labels)
+        pareto_labels = pareto_set(pareto_labels)
         bag_update = True if pareto_labels != self.labels else False
         return Bag(labels=pareto_labels, update=bag_update)
 
@@ -599,6 +608,11 @@ class Journey:
     """
 
     legs: List[Leg] = field(default_factory=list)
+
+    @property  # TODO: make fare, travel time etc properties?
+    def criteria(self):
+        """Criteria"""
+        return [self.travel_time(), self.fare(), self.number_of_trips()]
 
     def __len__(self):
         return len(self.legs)
@@ -648,17 +662,21 @@ class Journey:
         """Destination stop of Journey"""
         return self.legs[-1].to_stop
 
-    def fare(self) -> Stop:
+    def fare(self) -> float:
         """Total fare of Journey"""
         return self.legs[-1].fare
 
-    def dep(self):
+    def dep(self) -> int:
         """Departure time"""
         return self.legs[0].dep
 
-    def arr(self):
+    def arr(self) -> int:
         """Arrival time"""
         return self.legs[-1].arr
+
+    def travel_time(self) -> int:
+        """Travel time in seconds"""
+        return self.arr() - self.dep()
 
     def dominates(self, jrny: Journey):
         """Dominates other Journey"""
@@ -704,7 +722,7 @@ class Journey:
 
         logger.info(f"Fare: €{self.fare()}")
 
-        msg = f"Duration: {sec2str(self.arr() - self.dep())}"
+        msg = f"Duration: {sec2str(self.travel_time())}"
         if dep_secs:
             msg += " ({} from request time {})".format(
                 sec2str(self.arr() - dep_secs),
