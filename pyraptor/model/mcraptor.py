@@ -197,9 +197,7 @@ class McRaptorAlgorithm:
                     # Add arrival time to each label
                     transfer_arrival_time = (
                         label.earliest_arrival_time
-                        + self.get_transfer_time(
-                            stop, other_stop, label.earliest_arrival_time, 0
-                        )
+                        + self.get_transfer_time(stop, other_stop)
                     )
                     # Update label with new earliest arrival time at other_stop
                     label = label.update(
@@ -223,17 +221,12 @@ class McRaptorAlgorithm:
 
         return bag_round_stop, marked_stops_transfers
 
-    def get_transfer_time(
-        self, stop_from: int, stop_to: int, time_sec: int, dow: int
-    ) -> int:
+    def get_transfer_time(self, stop_from: Stop, stop_to: Stop) -> int:
         """
-        Calculate the transfer time from a stop to another stop (usually two platforms at one station
-        :param stop_from: Origin platform
-        :param stop_to: Destination platform
-        :param time_sec: Time of day (seconds since midnight)
-        :param dow: day of week (Monday = 0, Tuesday = 1, ...)
+        Calculate the transfer time from a stop to another stop (usually at one station)
         """
-        return TRANSFER_COST
+        transfers = self.timetable.transfers
+        return transfers.stop_to_stop_idx[(stop_from, stop_to)].layovertime
 
 
 def best_legs_to_destination_station(

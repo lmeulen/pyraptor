@@ -8,11 +8,7 @@ from loguru import logger
 
 from pyraptor.dao.timetable import Timetable
 from pyraptor.model.structures import Stop, Trip, Route, Leg, Journey
-from pyraptor.util import (
-    LARGE_NUMBER,
-    TRANSFER_TRIP,
-    TRANSFER_COST,
-)
+from pyraptor.util import LARGE_NUMBER, TRANSFER_TRIP
 
 
 @dataclass
@@ -63,7 +59,7 @@ class RaptorAlgorithm:
             self.bag_star[p] = Label()
 
         # Initialize bag with start node taking DEP_SECS seconds to reach
-        logger.debug("Starting from Stop IDs: {}".format(str(from_stops)))
+        logger.debug(f"Starting from Stop IDs: {str(from_stops)}")
         marked_stops = []
         for from_stop in from_stops:
             bag_round_stop[0][from_stop].update(dep_secs, None, None)
@@ -222,7 +218,7 @@ class RaptorAlgorithm:
             time_sofar = bag_round_stop[k][current_stop].earliest_arrival_time
             for arrive_stop in other_station_stops:
                 new_earliest_arrival = time_sofar + self.get_transfer_time(
-                    current_stop, arrive_stop, time_sofar, 0
+                    current_stop, arrive_stop
                 )
                 previous_earliest_arrival = self.bag_star[
                     arrive_stop
@@ -242,17 +238,12 @@ class RaptorAlgorithm:
 
         return bag_round_stop, new_stops
 
-    def get_transfer_time(
-        self, stop_from: int, stop_to: int, time_sec: int, dow: int
-    ) -> int:
+    def get_transfer_time(self, stop_from: Stop, stop_to: Stop) -> int:
         """
-        Calculate the transfer time from a stop to another stop (usually two platforms at one station
-        :param stop_from: Origin platform
-        :param stop_to: Destination platform
-        :param time_sec: Time of day (seconds since midnight)
-        :param dow: day of week (Monday = 0, Tuesday = 1, ...)
+        Calculate the transfer time from a stop to another stop (usually at one station)
         """
-        return TRANSFER_COST
+        transfers = self.timetable.transfers
+        return transfers.stop_to_stop_idx[(stop_from, stop_to)].layovertime
 
 
 def best_stop_at_target_station(to_stops: List[Stop], bag: Dict[Stop, Label]) -> Stop:

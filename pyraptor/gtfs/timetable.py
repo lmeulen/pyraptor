@@ -9,7 +9,7 @@ import pandas as pd
 from loguru import logger
 
 from pyraptor.dao import write_timetable
-from pyraptor.util import mkdir_if_not_exists, str2sec
+from pyraptor.util import mkdir_if_not_exists, str2sec, TRANSFER_COST
 from pyraptor.model.structures import (
     Timetable,
     Stop,
@@ -21,6 +21,8 @@ from pyraptor.model.structures import (
     Station,
     Stations,
     Routes,
+    Transfer,
+    Transfers,
 )
 
 
@@ -257,13 +259,31 @@ def gtfs_to_pyraptor_timetable(
     for trip in trips:
         routes.add(trip)
 
+    # Transfers
+    logger.debug("Add transfers")
+
+    transfers = Transfers()
+    for station in stations:
+        station_stops = station.stops
+        station_transfers = [
+            Transfer(from_stop=stop_i, to_stop=stop_j, layovertime=TRANSFER_COST)
+            for stop_i in station_stops
+            for stop_j in station_stops
+            if stop_i != stop_j
+        ]
+        for st in station_transfers:
+            transfers.add(st)
+
+    # Timetable
     timetable = Timetable(
         stations=stations,
         stops=stops,
         trips=trips,
         trip_stop_times=trip_stop_times,
         routes=routes,
+        transfers=transfers,
     )
+    timetable.counts()
 
     return timetable
 
