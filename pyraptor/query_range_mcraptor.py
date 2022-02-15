@@ -15,8 +15,6 @@ from pyraptor.model.mcraptor import (
 )
 from pyraptor.util import str2sec, sec2str
 
-from pdb import set_trace
-
 
 def parse_arguments():
     """Parse arguments"""
@@ -107,12 +105,6 @@ def main(
     logger.info(f"Journeys to destination station '{destination_station}'")
     for jrny in journeys_to_destinations[destination_station]:
         jrny.print()
-
-    import pdb
-
-    pdb.set_trace()
-    jr = journeys_to_destinations[destination_station]
-    print(journeys_to_pandas(jr))
 
 
 def run_range_mcraptor(
