@@ -2,6 +2,7 @@
 from typing import List, Tuple, Dict
 from copy import copy, deepcopy
 from time import perf_counter
+import pandas as pd
 
 from loguru import logger
 from pyraptor.model.structures import (
@@ -14,7 +15,7 @@ from pyraptor.model.structures import (
     Journey,
     pareto_set_labels,
 )
-from pyraptor.util import TRANSFER_COST
+from pyraptor.util import TRANSFER_COST, sec2str
 
 
 class McRaptorAlgorithm:
@@ -347,3 +348,65 @@ def pareto_optimal_journeys(journeys: List[Journey]) -> List[Journey]:
 
     best_journeys = sorted(best_journeys)
     return best_journeys
+
+
+def journeys_to_pandas(journeys: List[Journey]) -> pd.DataFrame:
+    """
+    Convert list of journeys to pandas Dataframe
+    """
+    output = []
+
+    # Add trips
+    for jrny_index, jrny in enumerate(journeys):
+        index = f"{str(jrny_index).rjust(2, '0')}_{jrny.legs[0].trip.hint}"
+        for leg_index, leg in enumerate(jrny.legs):
+            output.append(
+                dict(
+                    trip_idx=jrny_index,
+                    trip_leg_idx=leg_index,
+                    vertrektijd=sec2str(leg.dep),
+                    aankomsttijd=sec2str(leg.arr),
+                    start_station=leg.from_stop.name,
+                    eind_station=leg.to_stop.name,
+                    treinnummer=str(leg.trip.hint),
+                    category="Train",  # todo: add Treinformule in Trip
+                    vertrekspoor=leg.from_stop.platform_code,
+                    aankomstspoor=leg.to_stop.platform_code,
+                    reisoptie=index,
+                )
+            )
+
+    # Add transfers
+    for jrny_index, jrny in enumerate(journeys):
+        index = f"{str(jrny_index).rjust(2, '0')}_{jrny.legs[0].trip.hint}"
+
+        prev_leg = None
+        for leg_index, leg in enumerate(jrny.legs):
+            if leg_index == 0:
+                prev_leg = leg
+                continue
+
+            transfer = dict(
+                trip_idx=jrny_index,
+                trip_leg_idx=f"transfer_{leg_index}",
+                vertrektijd=sec2str(prev_leg.arr),
+                aankomsttijd=sec2str(leg.dep),
+                start_station=prev_leg.to_stop.name,
+                eind_station=leg.from_stop.name,
+                treinnummer=f"{prev_leg.to_stop.platform_code} to {leg.from_stop.platform_code}",
+                category="Transfer",
+                vertrekspoor=prev_leg.to_stop.platform_code,
+                aankomstspoor=leg.from_stop.platform_code,
+                reisoptie=index,
+            )
+            output.append(transfer)
+            prev_leg = leg
+
+    output_df = pd.DataFrame(output)
+
+    output_df["text"] = output_df.apply(
+        lambda x: f'{x["category"]} {x["treinnummer"]}', axis=1
+    )
+    output_df.sort_values(by=["trip_idx", "vertrektijd"], inplace=True)
+
+    return output_df
