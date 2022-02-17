@@ -124,19 +124,17 @@ class McRaptorAlgorithm:
                 # Step 1: update earliest arrival times and criteria for each label L in route-bag
                 update_labels = []
                 for label in route_bag.labels:
-                    if label.trip is not None:
-                        trip_stop_time = label.trip.get_stop(current_stop)
+                    trip_stop_time = label.trip.get_stop(current_stop)
 
-                        # Take fare of previous stop in trip as fare is defined on start
-                        previous_stop = remaining_stops_in_route[stop_idx - 1]
-                        from_fare = label.trip.get_fare(previous_stop)
+                    # Take fare of previous stop in trip as fare is defined on start
+                    previous_stop = remaining_stops_in_route[stop_idx - 1]
+                    from_fare = label.trip.get_fare(previous_stop)
 
-                        label = label.update(
-                            earliest_arrival_time=trip_stop_time.dts_arr,
-                            fare_addition=from_fare,
-                        )
-                    else:
-                        label = label.update()
+                    label = label.update(
+                        earliest_arrival_time=trip_stop_time.dts_arr,
+                        fare_addition=from_fare,
+                    )
+
                     update_labels.append(label)
                 route_bag = Bag(labels=update_labels)
 
@@ -150,14 +148,13 @@ class McRaptorAlgorithm:
 
                 # Mark stop if bag is updated
                 if bag_update:
-                    if current_stop != marked_stop:
-                        new_marked_stops.add(current_stop)
+                    new_marked_stops.add(current_stop)
 
                 # Step 3: merge B_{k-1}(p) into B_r
                 route_bag = route_bag.merge(bag_round_stop[k - 1][current_stop])
 
                 # Assign trips to all newly added labels in route_bag
-                # This is the trip on which we 'hop-on'
+                # This is the trip on which we board
                 update_labels = []
                 for label in route_bag.labels:
                     earliest_trip = marked_route.earliest_trip(
@@ -165,7 +162,7 @@ class McRaptorAlgorithm:
                     )
                     if earliest_trip is not None:
                         # Update label with earliest trip in route leaving from this station
-                        # If trip is different we hop-on the trip at current_stop
+                        # If trip is different we board the trip at current_stop
                         label = label.update_trip(earliest_trip, current_stop)
                         update_labels.append(label)
                 route_bag = Bag(labels=update_labels)
