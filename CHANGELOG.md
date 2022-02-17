@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.0 (2022-02-17)
+### Feature
+* Improve formatting and trigger minor release ([#26](https://github.com/lmeulen/pyraptor/issues/26)) ([`b8d64cd`](https://github.com/lmeulen/pyraptor/commit/b8d64cdd8d9f0c6b0bd2b141dc4f2e2ce2e7d8cd))
+
 ## v1.2.0 (2022-02-15)
 ### Feature
 * Add Transfers to timetable ([#23](https://github.com/lmeulen/pyraptor/issues/23)) ([`67dfa53`](https://github.com/lmeulen/pyraptor/commit/67dfa5373ccb2801fe22ba0429d1557f71b10d8d))
