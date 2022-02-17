@@ -502,6 +502,7 @@ class Leg:
             trip_long_name=self.trip.long_name,
             from_platform_code=self.from_stop.platform_code,
             to_platform_code=self.to_stop.platform_code,
+            fare=self.fare,
         )
 
 

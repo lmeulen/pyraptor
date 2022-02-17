@@ -51,6 +51,7 @@ def test_run_mcraptor_many_transfers(timetable_with_many_transfers):
         rounds,
     )
     for jrny in journeys:
+        jrny.to_list()
         jrny.print(departure_time)
 
     assert len(journeys) == 1, "should have 1 journey"
