@@ -1,6 +1,7 @@
 """Test Query McRaptor"""
+from bdb import set_trace
 from pyraptor import query_mcraptor
-from pyraptor.model.mcraptor import pareto_set_labels
+from pyraptor.model.mcraptor import pareto_set
 from pyraptor.model.structures import Stop, Label
 
 
@@ -50,24 +51,26 @@ def test_run_mcraptor_many_transfers(timetable_with_many_transfers):
         rounds,
     )
     for jrny in journeys:
+        jrny.to_list()
         jrny.print(departure_time)
 
     assert len(journeys) == 1, "should have 1 journey"
 
 
-def test_pareto_set_labels():
+def test_pareto_set():
     """test creating pareto set"""
 
     stop = Stop(1, 1, "UT", "13")
+    stop2 = Stop(1, 1, "UT", "14")
 
     label_0 = Label(1, 6, 0, stop)
-    label_1 = Label(1, 6, 0, stop)
+    label_1 = Label(1, 6, 0, stop2)
     label_2 = Label(3, 4, 0, stop)
     label_3 = Label(5, 1, 0, stop)
     label_4 = Label(3, 5, 0, stop)
     label_5 = Label(5, 3, 0, stop)
     label_6 = Label(6, 1, 0, stop)
-    labels = pareto_set_labels(
+    labels1 = pareto_set(
         [
             label_0,
             label_1,
@@ -78,5 +81,19 @@ def test_pareto_set_labels():
             label_6,
         ]
     )
-    expected = [label_0, label_2, label_3]
-    assert labels == expected
+    labels2 = pareto_set(
+        [
+            label_0,
+            label_1,
+            label_2,
+            label_3,
+            label_4,
+            label_5,
+            label_6,
+        ],
+        keep_equal=True,
+    )
+    expected1 = [label_0, label_2, label_3]
+    expected2 = [label_0, label_1, label_2, label_3]
+
+    assert labels1 == expected1 and labels2 == expected2

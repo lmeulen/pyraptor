@@ -115,6 +115,7 @@ def read_gtfs_timetable(
             "service_id",
             "trip_id",
             "trip_short_name",
+            "trip_long_name",
         ]
     ]
     trips["trip_short_name"] = trips["trip_short_name"].astype(int)
@@ -228,6 +229,7 @@ def gtfs_to_pyraptor_timetable(
     for trip_row in gtfs_timetable.trips.itertuples():
         trip = Trip()
         trip.hint = trip_row.trip_short_name  # i.e. treinnummer
+        trip.long_name = trip_row.trip_long_name  # e.g., Sprinter
 
         # Iterate over stops
         sort_stop_times = sorted(
