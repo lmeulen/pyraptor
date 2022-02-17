@@ -48,7 +48,7 @@ Journeys that are dominated by other journeys in the time range are removed.
 #### McRaptor query
 
 McRaptor returns a set of Pareto-optimal journeys given multiple criterions, i.e. earliest 
-arrival time, fare and number of trips.
+arrival time, fare and number of trips. Test.
 
 **Examples**
 
