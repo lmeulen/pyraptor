@@ -16,7 +16,7 @@ from pyraptor.model.structures import (
     Stations,
     Routes,
     Transfer,
-    Transfers
+    Transfers,
 )
 from pyraptor.util import TRANSFER_COST
 
