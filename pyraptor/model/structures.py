@@ -11,7 +11,7 @@ import attr
 import numpy as np
 from loguru import logger
 
-from pyraptor.util import LARGE_NUMBER, sec2str
+from pyraptor.util import sec2str
 
 
 def same_type_and_id(first, second):
@@ -45,7 +45,7 @@ class Stop:
 
     id = attr.ib(default=None)
     name = attr.ib(default=None)
-    station = attr.ib(default=None)
+    station: Station = attr.ib(default=None)
     platform_code = attr.ib(default=None)
     index = attr.ib(default=None)
 
@@ -246,7 +246,7 @@ class Trip:
     id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
-    formule = attr.ib(default=None) # e.g., Sprinter
+    long_name = attr.ib(default=None)  # e.g., Sprinter
 
     def __hash__(self):
         return hash(self.id)
@@ -467,7 +467,7 @@ class Leg:
     def is_compatible_before(self, other_leg: Leg):
         """
         Check if Leg is allowed before another leg. That is,
-        - It is possible to go form current leg to other leg concerning arrival time
+        - It is possible to go from current leg to other leg concerning arrival time
         - Number of trips of current leg differs by > 1, i.e. a differen trip,
           or >= 0 when the other_leg is a transfer_leg
         - The accumulated value of a criteria of current leg is larger or equal to the accumulated value of
@@ -488,45 +488,32 @@ class Leg:
 
         return all([arrival_time_compatible, n_trips_compatible, criteria_compatible])
 
-
-# TODO: should this be here?
-def pareto_set(labels: List[Label], keep_equal=False):
-    """
-    Find the pareto-efficient points
-    :param labels: list with labels
-    :keep_equal return also labels with equal criteria
-    :return: list with pairwise non-dominating labels
-    """
-
-    is_efficient = np.ones(len(labels), dtype=bool)
-    labels_criteria = np.array([label.criteria for label in labels])
-    for i, label in enumerate(labels_criteria):
-        if is_efficient[i]:
-            # Keep any point with a lower cost
-            if keep_equal:
-                # keep point with all labels equal or one lower
-                is_efficient[is_efficient] = np.any(
-                    labels_criteria[is_efficient] < label, axis=1
-                ) + np.all(labels_criteria[is_efficient] == label, axis=1)
-            else:
-                is_efficient[is_efficient] = np.any(
-                    labels_criteria[is_efficient] < label, axis=1
-                )
-
-            is_efficient[i] = True  # And keep self
-
-    return [copy(label) for i, label in enumerate(labels) if is_efficient[i]]
+    def to_dict(self, leg_index: int = None) -> Dict:
+        """Leg to readable dictionary"""
+        return dict(
+            trip_leg_idx=leg_index,
+            departure_time=self.dep,
+            arrival_time=self.arr,
+            from_stop=self.from_stop.name,
+            from_station=self.from_stop.station.name,
+            to_stop=self.to_stop.name,
+            to_station=self.to_stop.station.name,
+            trip_hint=self.trip.hint,
+            trip_long_name=self.trip.long_name,
+            from_platform_code=self.from_stop.platform_code,
+            to_platform_code=self.to_stop.platform_code,
+        )
 
 
 @dataclass(frozen=True)
 class Label:
     """Label"""
 
-    earliest_arrival_time: int  # earliest arrival time
+    earliest_arrival_time: int
     fare: int  # total fare
     trip: Trip  # trip to take to obtain travel_time and fare
     from_stop: Stop  # stop to hop-on the trip
-    n_trips: int = 0  # number of trips
+    n_trips: int = 0
     infinite: bool = False
 
     @property
@@ -731,3 +718,35 @@ class Journey:
             )
         logger.info(msg)
         logger.info("")
+
+    def to_list(self) -> List[Dict]:
+        """Convert journey to list of legs as dict"""
+        return [leg.to_dict(leg_index=idx) for idx, leg in enumerate(self.legs)]
+
+
+def pareto_set(labels: List[Label], keep_equal=False):
+    """
+    Find the pareto-efficient points
+    :param labels: list with labels
+    :keep_equal return also labels with equal criteria
+    :return: list with pairwise non-dominating labels
+    """
+
+    is_efficient = np.ones(len(labels), dtype=bool)
+    labels_criteria = np.array([label.criteria for label in labels])
+    for i, label in enumerate(labels_criteria):
+        if is_efficient[i]:
+            # Keep any point with a lower cost
+            if keep_equal:
+                # keep point with all labels equal or one lower
+                is_efficient[is_efficient] = np.any(
+                    labels_criteria[is_efficient] < label, axis=1
+                ) + np.all(labels_criteria[is_efficient] == label, axis=1)
+            else:
+                is_efficient[is_efficient] = np.any(
+                    labels_criteria[is_efficient] < label, axis=1
+                )
+
+            is_efficient[i] = True  # And keep self
+
+    return [copy(label) for i, label in enumerate(labels) if is_efficient[i]]
