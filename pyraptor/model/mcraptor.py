@@ -2,7 +2,6 @@
 from typing import List, Tuple, Dict
 from copy import copy, deepcopy
 from time import perf_counter
-import pandas as pd
 
 from loguru import logger
 from pyraptor.model.structures import (
@@ -15,7 +14,7 @@ from pyraptor.model.structures import (
     Journey,
     pareto_set,
 )
-from pyraptor.util import TRANSFER_COST, sec2str
+from pyraptor.util import TRANSFER_COST
 
 
 class McRaptorAlgorithm:

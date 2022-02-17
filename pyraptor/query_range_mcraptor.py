@@ -10,7 +10,6 @@ from pyraptor.model.structures import Timetable, Journey, pareto_set
 from pyraptor.model.mcraptor import (
     McRaptorAlgorithm,
     best_legs_to_destination_station,
-    journeys_to_pandas,
     reconstruct_journeys,
 )
 from pyraptor.util import str2sec, sec2str
