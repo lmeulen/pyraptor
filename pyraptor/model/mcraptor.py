@@ -14,7 +14,6 @@ from pyraptor.model.structures import (
     Journey,
     pareto_set,
 )
-from pyraptor.util import TRANSFER_COST
 
 
 class McRaptorAlgorithm:
@@ -107,7 +106,6 @@ class McRaptorAlgorithm:
         :param k: current round
         :param route_marked_stops: list of marked (route, stop) for evaluation
         """
-        logger.debug(f"Traverse routes for round {k}")
 
         new_marked_stops = set()
 
@@ -178,8 +176,6 @@ class McRaptorAlgorithm:
         marked_stops: List[Stop],
     ) -> Tuple:
         """Add transfers between platforms."""
-
-        logger.debug("Add transfer times...")
 
         marked_stops_transfers = set()
 

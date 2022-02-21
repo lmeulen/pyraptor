@@ -4,7 +4,7 @@ import numpy as np
 
 
 TRANSFER_COST = 2 * 60  # Default transfer time is 2 minutes
-LARGE_NUMBER = 999999
+LARGE_NUMBER = 2147483647  # Earliest arrival time at start of algorithm
 TRANSFER_TRIP = None
 
 

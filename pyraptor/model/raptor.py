@@ -303,9 +303,10 @@ def is_dominated(original_journey: List[Leg], new_journey: List[Leg]) -> bool:
     original_arrival = arrival(original_journey)
     new_arrival = arrival(new_journey)
 
-    # Is dominated
+    # Is dominated, strictly better in one criteria and not worse in other
     return (
         True
-        if original_depart > new_depart and original_arrival < new_arrival
+        if (original_depart >= new_depart and original_arrival < new_arrival)
+        or (original_depart > new_depart and original_arrival <= new_arrival)
         else False
     )
