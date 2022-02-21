@@ -103,7 +103,7 @@ def main(
 
     # All destinations are present in labels, so this is only for logging purposes
     logger.info(f"Journeys to destination station '{destination_station}'")
-    for jrny in journeys_to_destinations[destination_station]:
+    for jrny in journeys_to_destinations[destination_station][::-1]:
         jrny.print()
 
 
