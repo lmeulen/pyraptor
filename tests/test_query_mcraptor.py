@@ -21,13 +21,14 @@ def test_run_mcraptor_with_transfers_and_fares(timetable_with_transfers_and_fare
     departure_time = 1200
     rounds = 4
 
-    journeys = query_mcraptor.run_mcraptor(
+    journeys_to_destinations = query_mcraptor.run_mcraptor(
         timetable_with_transfers_and_fares,
         origin_station,
-        destination_station,
         departure_time,
         rounds,
     )
+
+    journeys = journeys_to_destinations[destination_station]
     for jrny in journeys:
         jrny.print(departure_time)
 
@@ -43,13 +44,13 @@ def test_run_mcraptor_many_transfers(timetable_with_many_transfers):
     rounds = 4
 
     # Find route between two stations
-    journeys = query_mcraptor.run_mcraptor(
+    journeys_to_destinations = query_mcraptor.run_mcraptor(
         timetable_with_many_transfers,
         origin_station,
-        destination_station,
         departure_time,
         rounds,
     )
+    journeys = journeys_to_destinations[destination_station]
     for jrny in journeys:
         jrny.to_list()
         jrny.print(departure_time)

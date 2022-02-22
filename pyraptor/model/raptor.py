@@ -272,10 +272,10 @@ def reconstruct_journey(destination: Stop, bag: Dict[Stop, Label]) -> Journey:
         leg = Leg(
             from_stop, to_stop, bag_to_stop.trip, bag_to_stop.earliest_arrival_time
         )
-        jrny.prepend_leg(leg)
+        jrny = jrny.prepend_leg(leg)
         to_stop = from_stop
 
-    jrny.remove_transfer_legs()
+    jrny = jrny.remove_transfer_legs()
 
     return jrny
 

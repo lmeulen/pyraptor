@@ -1,6 +1,6 @@
 """McRAPTOR algorithm"""
 from typing import List, Tuple, Dict
-from copy import copy, deepcopy
+from copy import copy
 from time import perf_counter
 
 from loguru import logger
@@ -279,7 +279,7 @@ def reconstruct_journeys(
 
             # End of journey if we are at origin stop or journey is not feasible
             if current_leg.trip is None or current_leg.from_stop in from_stops:
-                jrny.remove_transfer_legs()
+                jrny = jrny.remove_transfer_legs()
                 if jrny.is_valid() is True:
                     yield jrny
                 continue
@@ -297,8 +297,7 @@ def reconstruct_journeys(
                 )
                 # Only add new_leg if compatible before current leg, e.g. earlier arrival time, etc.
                 if new_leg.is_compatible_before(current_leg):
-                    new_jrny = deepcopy(jrny)
-                    new_jrny.prepend_leg(new_leg)
+                    new_jrny = jrny.prepend_leg(new_leg)
                     for i in loop(bag_round_stop, k, [new_jrny]):
                         yield i
 
