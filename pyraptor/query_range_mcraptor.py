@@ -2,6 +2,7 @@
 import argparse
 from typing import Dict, List
 from copy import copy
+from time import perf_counter
 
 from loguru import logger
 
@@ -153,6 +154,9 @@ def run_range_mcraptor(
         last_round_bag = copy(bag_round_stop[rounds])
 
         # Determine the best destination ID, destination is a platform
+        logger.info("Calculating journeys to all destinations")
+        s = perf_counter()
+
         for destination_station_name, to_stops in destination_stops.items():
             destination_legs = best_legs_to_destination_station(
                 to_stops, last_round_bag
@@ -163,6 +167,8 @@ def run_range_mcraptor(
                     from_stops, destination_legs, bag_round_stop, k=rounds
                 )
                 journeys_to_destinations[destination_station_name].extend(journeys)
+
+        logger.info(f"Journey calculation time: {perf_counter() - s}")
 
     # Keep Pareto-optimal journeys
     for destination_station_name, journeys in journeys_to_destinations.items():

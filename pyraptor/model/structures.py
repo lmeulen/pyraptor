@@ -639,7 +639,7 @@ class Bag:
         return min([self.labels[i].earliest_arrival_time for i in range(len(self))])
 
 
-@dataclass
+@dataclass(frozen=True)
 class Journey:
     """
     Journey from origin to destination specified as Legs
@@ -647,7 +647,7 @@ class Journey:
 
     legs: List[Leg] = field(default_factory=list)
 
-    @property  # TODO: make fare, travel time etc properties?
+    @property
     def criteria(self):
         """Criteria"""
         return [self.travel_time(), self.fare(), self.number_of_trips()]
@@ -672,21 +672,25 @@ class Journey:
         trips = set([l.trip for l in self.legs])
         return len(trips)
 
-    def prepend_leg(self, leg: Leg):
+    def prepend_leg(self, leg: Leg) -> Journey:
         """Add leg to journey"""
-        self.legs.insert(0, leg)
+        legs = self.legs
+        legs.insert(0, leg)
+        jrny = Journey(legs=legs)
+        return jrny
 
-    def remove_transfer_legs(self):
+    def remove_transfer_legs(self) -> Journey:
         """Remove all transfer legs"""
-        self.legs = [
+        legs = [
             leg
             for leg in self.legs
             if (leg.trip is not None) and (leg.from_stop.station != leg.to_stop.station)
         ]
+        jrny = Journey(legs=legs)
+        return jrny
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """Is valid journey"""
-        self.remove_transfer_legs()
         for index in range(len(self.legs) - 1):
             if self.legs[index].arr > self.legs[index + 1].dep:
                 return False
