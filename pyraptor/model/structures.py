@@ -249,6 +249,7 @@ class Trip:
     stop_times = attr.ib(default=attr.Factory(list))
     hint = attr.ib(default=None)
     long_name = attr.ib(default=None)  # e.g., Sprinter
+    stop_to_stoptime_idx = attr.ib(default=attr.Factory(dict))
 
     def __hash__(self):
         return hash(self.id)
@@ -280,11 +281,11 @@ class Trip:
         assert stop_time.dts_arr <= stop_time.dts_dep
         assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
         self.stop_times.append(stop_time)
+        self.stop_to_stoptime_idx[stop_time.stop] = stop_time
 
     def get_stop(self, stop: Stop) -> TripStopTime:
         """Get stop"""
-        stop_times = [st for st in self.stop_times if st.stop == stop]
-        return stop_times[0] if len(stop_times) > 0 else None
+        return self.stop_to_stoptime_idx[stop]
 
     def get_fare(self, depart_stop: Stop) -> int:
         """Get fare from depart_stop"""
