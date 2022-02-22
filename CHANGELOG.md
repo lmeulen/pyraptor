@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.1 (2022-02-22)
+### Fix
+* Domination bug in rRaptor and too low LARGE_NUMBER when working with unix seconds ([#29](https://github.com/lmeulen/pyraptor/issues/29)) ([`ec23552`](https://github.com/lmeulen/pyraptor/commit/ec23552653eb7faa5d5e7f986068f72489c8afe4))
+
 ## v1.3.0 (2022-02-17)
 ### Feature
 * Improve formatting and trigger minor release ([#26](https://github.com/lmeulen/pyraptor/issues/26)) ([`b8d64cd`](https://github.com/lmeulen/pyraptor/commit/b8d64cdd8d9f0c6b0bd2b141dc4f2e2ce2e7d8cd))
