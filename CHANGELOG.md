@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.2 (2022-02-22)
+### Fix
+* Do not use very slow deepcopy in journey reconstruction ([#30](https://github.com/lmeulen/pyraptor/issues/30)) ([`a836886`](https://github.com/lmeulen/pyraptor/commit/a8368864a8022adcaae56d627cb68f0973a44608))
+
 ## v1.3.1 (2022-02-22)
 ### Fix
 * Domination bug in rRaptor and too low LARGE_NUMBER when working with unix seconds ([#29](https://github.com/lmeulen/pyraptor/issues/29)) ([`ec23552`](https://github.com/lmeulen/pyraptor/commit/ec23552653eb7faa5d5e7f986068f72489c8afe4))
