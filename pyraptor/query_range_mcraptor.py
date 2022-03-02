@@ -20,11 +20,7 @@ def parse_arguments():
     """Parse arguments"""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        default="data/output",
-        help="Input directory",
+        "-i", "--input", type=str, default="data/output", help="Input directory",
     )
     parser.add_argument(
         "-or",
@@ -94,11 +90,7 @@ def main(
 
     # Find route between two stations for time range, i.e. Range Query
     journeys_to_destinations = run_range_mcraptor(
-        timetable,
-        origin_station,
-        dep_secs_min,
-        dep_secs_max,
-        rounds,
+        timetable, origin_station, dep_secs_min, dep_secs_max, rounds,
     )
 
     # All destinations are calculated, however, we only print one for logging purposes
@@ -167,13 +159,17 @@ def run_range_mcraptor(
                     from_stops, destination_legs, bag_round_stop, k=rounds
                 )
                 journeys_to_destinations[destination_station_name].extend(journeys)
-
+        
         logger.info(f"Journey calculation time: {perf_counter() - s}")
 
-    # Keep Pareto-optimal journeys
+    # Remove duplicate journeys
     for destination_station_name, journeys in journeys_to_destinations.items():
-        best_journeys = pareto_set(journeys, keep_equal=True)
-        journeys_to_destinations[destination_station_name] = best_journeys
+        unique_journeys = []
+        for journey in journeys:
+            if not journey in unique_journeys:
+                unique_journeys.append(journey)
+
+        journeys_to_destinations[destination_station_name] = unique_journeys
 
     return journeys_to_destinations
 
