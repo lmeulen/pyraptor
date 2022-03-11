@@ -367,16 +367,16 @@ class Route:
         """Returns earliest trip after time dts (sec)"""
         stop_idx = self.stop_index(stop)
         trip_stop_times = [trip.stop_times[stop_idx] for trip in self.trips]
-        trip_stop_times = [tst for tst in trip_stop_times if tst.dts_arr >= dts_arr]
-        trip_stop_times = sorted(trip_stop_times, key=attrgetter("dts_arr"))
+        trip_stop_times = [tst for tst in trip_stop_times if tst.dts_dep >= dts_arr]
+        trip_stop_times = sorted(trip_stop_times, key=attrgetter("dts_dep"))
         return trip_stop_times[0].trip if len(trip_stop_times) > 0 else None
 
     def earliest_trip_stop_time(self, dts_arr: int, stop: Stop) -> TripStopTime:
         """Returns earliest trip stop time after time dts (sec)"""
         stop_idx = self.stop_index(stop)
         trip_stop_times = [trip.stop_times[stop_idx] for trip in self.trips]
-        trip_stop_times = [tst for tst in trip_stop_times if tst.dts_arr >= dts_arr]
-        trip_stop_times = sorted(trip_stop_times, key=attrgetter("dts_arr"))
+        trip_stop_times = [tst for tst in trip_stop_times if tst.dts_dep >= dts_arr]
+        trip_stop_times = sorted(trip_stop_times, key=attrgetter("dts_dep"))
         return trip_stop_times[0] if len(trip_stop_times) > 0 else None
 
 
