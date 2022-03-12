@@ -110,7 +110,7 @@ def run_mcraptor(
     # Run Round-Based Algorithm for an origin station
     from_stops = timetable.stations.get(origin_station).stops
     raptor = McRaptorAlgorithm(timetable)
-    bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
+    bag_round_stop, actual_rounds = raptor.run(from_stops, dep_secs, rounds)
     last_round_bag = copy(bag_round_stop[rounds])
 
     # Calculate journets to all destinations

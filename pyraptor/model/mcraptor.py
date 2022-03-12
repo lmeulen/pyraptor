@@ -42,7 +42,7 @@ class McRaptorAlgorithm:
         # Initialize bag for round 0, i.e. add Labels with criterion 0 for all from stops
         if previous_run != None:
             # For the range query
-             bag_round_stop[0] = copy(previous_run)
+            bag_round_stop[0] = copy(previous_run)
 
         for from_stop in from_stops:
             bag_round_stop[0][from_stop].add(Label(dep_secs, 0, None, from_stop))
