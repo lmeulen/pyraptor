@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.4 (2022-03-14)
+### Fix
+* Performance update rMcRaptor ([#34](https://github.com/lmeulen/pyraptor/issues/34)) ([`c881f45`](https://github.com/lmeulen/pyraptor/commit/c881f4586d6c782ad803f8a93590f788001809c9))
+
 ## v1.3.3 (2022-03-11)
 ### Fix
 * Updated earliest trip to look at depature time ([#33](https://github.com/lmeulen/pyraptor/issues/33)) ([`788dd8c`](https://github.com/lmeulen/pyraptor/commit/788dd8c04e73046519728ddee0d6cf31c38048c8))
