@@ -143,6 +143,9 @@ def run_range_mcraptor(
         station_name: [] for station_name, _ in destination_stops.items()
     }
 
+    logger.info("Calculating journeys to all destinations")
+    s = perf_counter()
+
     # Find Pareto-optimal journeys for all possible departure times
     for dep_index, dep_secs in enumerate(potential_dep_secs):
         logger.info(f"Processing {dep_index} / {len(potential_dep_secs)}")
@@ -150,13 +153,13 @@ def run_range_mcraptor(
 
         # Run Round-Based Algorithm
         mcraptor = McRaptorAlgorithm(timetable)
-        bag_round_stop = mcraptor.run(from_stops, dep_secs, rounds)
-        last_round_bag = copy(bag_round_stop[rounds])
+        if dep_index == 0:
+            bag_round_stop, actual_rounds = mcraptor.run(from_stops, dep_secs, rounds)
+        else:
+            bag_round_stop, actual_rounds = mcraptor.run(from_stops, dep_secs, rounds, last_round_bag)
+        last_round_bag = copy(bag_round_stop[actual_rounds])
 
         # Determine the best destination ID, destination is a platform
-        logger.info("Calculating journeys to all destinations")
-        s = perf_counter()
-
         for destination_station_name, to_stops in destination_stops.items():
             destination_legs = best_legs_to_destination_station(
                 to_stops, last_round_bag
@@ -168,7 +171,7 @@ def run_range_mcraptor(
                 )
                 journeys_to_destinations[destination_station_name].extend(journeys)
 
-        logger.info(f"Journey calculation time: {perf_counter() - s}")
+    logger.info(f"Journey calculation time: {perf_counter() - s}")
 
     # Keep Pareto-optimal journeys
     for destination_station_name, journeys in journeys_to_destinations.items():

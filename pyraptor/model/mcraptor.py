@@ -23,7 +23,7 @@ class McRaptorAlgorithm:
         self.timetable = timetable
 
     def run(
-        self, from_stops: List[Stop], dep_secs: int, rounds: int
+        self, from_stops: List[Stop], dep_secs: int, rounds: int, previous_run: Dict[int, Bag] = None
     ) -> Dict[int, Dict[int, Bag]]:
         """Run Round-Based Algorithm"""
 
@@ -40,12 +40,17 @@ class McRaptorAlgorithm:
         logger.debug(f"Starting from Stop IDs: {str(from_stops)}")
 
         # Initialize bag for round 0, i.e. add Labels with criterion 0 for all from stops
+        if previous_run != None:
+            # For the range query
+            bag_round_stop[0] = copy(previous_run)
+
         for from_stop in from_stops:
             bag_round_stop[0][from_stop].add(Label(dep_secs, 0, None, from_stop))
 
         marked_stops = from_stops
 
         # Run rounds
+        actual_rounds = 0
         for k in range(1, rounds + 1):
             logger.info(f"Analyzing possibilities round {k}")
             logger.debug(f"Stops to evaluate count: {len(marked_stops)}")
@@ -54,6 +59,8 @@ class McRaptorAlgorithm:
             bag_round_stop[k] = copy(bag_round_stop[k - 1])
 
             if len(marked_stops) > 0:
+                actual_rounds = k
+
                 # Accumulate routes serving marked stops from previous round
                 route_marked_stops = self.accumulate_routes(marked_stops)
 
@@ -72,7 +79,7 @@ class McRaptorAlgorithm:
         logger.info("Finish round-based algorithm to create bag with best labels")
         logger.info(f"Running time: {perf_counter() - s}")
 
-        return bag_round_stop
+        return bag_round_stop, actual_rounds
 
     def accumulate_routes(self, marked_stops) -> List[Tuple[Route, Stop]]:
         """Accumulate routes serving marked stops from previous round, i.e. Q"""
