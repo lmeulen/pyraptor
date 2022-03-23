@@ -277,8 +277,9 @@ class Trip:
 
     def add_stop_time(self, stop_time: TripStopTime):
         """Add stop time"""
-        assert stop_time.dts_arr <= stop_time.dts_dep
-        assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
+        if np.isfinite(stop_time.dts_arr) and np.isfinite(stop_time.dts_dep):
+            assert stop_time.dts_arr <= stop_time.dts_dep
+            assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
         self.stop_times.append(stop_time)
 
     def get_stop(self, stop: Stop) -> TripStopTime:
