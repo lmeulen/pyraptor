@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.5 (2022-03-23)
+### Fix
+* Assert in add trip stoptimes only if finite arrival or departure time ([`7363c7f`](https://github.com/lmeulen/pyraptor/commit/7363c7f9f3bfe3ad3334d08368dc3db09c2c2cbe))
+
 ## v1.3.4 (2022-03-14)
 ### Fix
 * Performance update rMcRaptor ([#34](https://github.com/lmeulen/pyraptor/issues/34)) ([`c881f45`](https://github.com/lmeulen/pyraptor/commit/c881f4586d6c782ad803f8a93590f788001809c9))
