@@ -201,7 +201,7 @@ class TripStopTimes:
         self.stop_trip_idx: Dict[Stop, List[TripStopTime]] = defaultdict(list)
 
     def __repr__(self):
-        return f"Trips(n_trips={len(self.set_idx)})"
+        return f"TripStoptimes(n_tripstoptimes={len(self.set_idx)})"
 
     def __getitem__(self, trip_id):
         return self.set_idx[trip_id]
