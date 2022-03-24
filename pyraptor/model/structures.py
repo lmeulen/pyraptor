@@ -177,7 +177,7 @@ class TripStopTime:
     stop = attr.ib(default=attr.NOTHING)
     dts_arr = attr.ib(default=attr.NOTHING)
     dts_dep = attr.ib(default=attr.NOTHING)
-    fare = attr.ib(default=0)
+    fare = attr.ib(default=0.0)
 
     def __hash__(self):
         return hash((self.trip, self.stopidx))
@@ -201,7 +201,7 @@ class TripStopTimes:
         self.stop_trip_idx: Dict[Stop, List[TripStopTime]] = defaultdict(list)
 
     def __repr__(self):
-        return f"Trips(n_trips={len(self.set_idx)})"
+        return f"TripStoptimes(n_tripstoptimes={len(self.set_idx)})"
 
     def __getitem__(self, trip_id):
         return self.set_idx[trip_id]
@@ -279,7 +279,9 @@ class Trip:
         """Add stop time"""
         if np.isfinite(stop_time.dts_arr) and np.isfinite(stop_time.dts_dep):
             assert stop_time.dts_arr <= stop_time.dts_dep
-            assert not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
+            assert (
+                not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
+            )
         self.stop_times.append(stop_time)
 
     def get_stop(self, stop: Stop) -> TripStopTime:
@@ -336,10 +338,7 @@ class Route:
         return same_type_and_id(self, trip)
 
     def __repr__(self):
-        return "Route(id={0.id}, trips={trips})".format(
-            self,
-            trips=len(self.trips),
-        )
+        return "Route(id={0.id}, trips={trips})".format(self, trips=len(self.trips),)
 
     def __getitem__(self, n):
         return self.trips[n]
@@ -768,8 +767,7 @@ class Journey:
         msg = f"Duration: {sec2str(self.travel_time())}"
         if dep_secs:
             msg += " ({} from request time {})".format(
-                sec2str(self.arr() - dep_secs),
-                sec2str(dep_secs),
+                sec2str(self.arr() - dep_secs), sec2str(dep_secs),
             )
         logger.info(msg)
         logger.info("")
