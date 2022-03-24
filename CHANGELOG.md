@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.6 (2022-03-24)
+### Fix
+* Repr from TripStoptimes ([`221b605`](https://github.com/lmeulen/pyraptor/commit/221b60505df339c833392d844dff4dae917b4532))
+* Fare as float ([`52a6942`](https://github.com/lmeulen/pyraptor/commit/52a6942875e7306542dc415d9ced280c58a36c94))
+
 ## v1.3.5 (2022-03-23)
 ### Fix
 * Assert in add trip stoptimes only if finite arrival or departure time ([`7363c7f`](https://github.com/lmeulen/pyraptor/commit/7363c7f9f3bfe3ad3334d08368dc3db09c2c2cbe))
