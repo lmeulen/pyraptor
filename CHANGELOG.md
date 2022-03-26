@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.7 (2022-03-26)
+### Fix
+* Some performance tweaks ([#38](https://github.com/lmeulen/pyraptor/issues/38)) ([`0b08bad`](https://github.com/lmeulen/pyraptor/commit/0b08bad6066c7be6d27e9774d57d09b0dca49f62))
+
 ## v1.3.6 (2022-03-24)
 ### Fix
 * Repr from TripStoptimes ([`221b605`](https://github.com/lmeulen/pyraptor/commit/221b60505df339c833392d844dff4dae917b4532))
