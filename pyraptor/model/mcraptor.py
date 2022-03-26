@@ -75,6 +75,8 @@ class McRaptorAlgorithm:
                 )
 
                 marked_stops = set(marked_stops_trips).union(marked_stops_transfers)
+            else:
+                break
 
         logger.info("Finish round-based algorithm to create bag with best labels")
         logger.info(f"Running time: {perf_counter() - s}")

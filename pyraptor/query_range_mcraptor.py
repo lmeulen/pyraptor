@@ -112,7 +112,7 @@ def run_range_mcraptor(
     origin_station: str,
     dep_secs_min: int,
     dep_secs_max: int,
-    rounds: int,
+    max_rounds: int,
 ) -> Dict[str, List[Journey]]:
     """
     Perform the McRAPTOR algorithm for a range query
@@ -154,9 +154,9 @@ def run_range_mcraptor(
         # Run Round-Based Algorithm
         mcraptor = McRaptorAlgorithm(timetable)
         if dep_index == 0:
-            bag_round_stop, actual_rounds = mcraptor.run(from_stops, dep_secs, rounds)
+            bag_round_stop, actual_rounds = mcraptor.run(from_stops, dep_secs, max_rounds)
         else:
-            bag_round_stop, actual_rounds = mcraptor.run(from_stops, dep_secs, rounds, last_round_bag)
+            bag_round_stop, actual_rounds = mcraptor.run(from_stops, dep_secs, max_rounds, last_round_bag)
         last_round_bag = copy(bag_round_stop[actual_rounds])
 
         # Determine the best destination ID, destination is a platform
@@ -167,7 +167,7 @@ def run_range_mcraptor(
 
             if len(destination_legs) != 0:
                 journeys = reconstruct_journeys(
-                    from_stops, destination_legs, bag_round_stop, k=rounds
+                    from_stops, destination_legs, bag_round_stop, k=actual_rounds
                 )
                 journeys_to_destinations[destination_station_name].extend(journeys)
 
