@@ -56,7 +56,7 @@ class Stop:
         return hash(self.id)
 
     def __eq__(self, stop):
-        return type(self) is type(stop) and self.id == stop.id #same_type_and_id(self, stop)
+        return type(self) is type(stop) and self.id == stop.id
 
     def __repr__(self):
         if self.id == self.name:
@@ -289,8 +289,6 @@ class Trip:
 
     def get_stop(self, stop: Stop) -> TripStopTime:
         """Get stop"""
-        # stop_times = [st for st in self.stop_times if st.stop == stop]
-        # return stop_times[0] if len(stop_times) > 0 else None
         return self.stop_times[self.stop_times_index[stop]]
     
     def get_fare(self, depart_stop: Stop) -> int:
