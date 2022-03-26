@@ -1,6 +1,7 @@
 """Datatypes"""
 from __future__ import annotations
 
+from itertools import compress
 from collections import defaultdict
 from operator import attrgetter
 from typing import List, Dict, Tuple
@@ -55,7 +56,7 @@ class Stop:
         return hash(self.id)
 
     def __eq__(self, stop):
-        return same_type_and_id(self, stop)
+        return type(self) is type(stop) and self.id == stop.id #same_type_and_id(self, stop)
 
     def __repr__(self):
         if self.id == self.name:
@@ -247,6 +248,7 @@ class Trip:
 
     id = attr.ib(default=None)
     stop_times = attr.ib(default=attr.Factory(list))
+    stop_times_index = attr.ib(default=attr.Factory(dict))
     hint = attr.ib(default=None)
     long_name = attr.ib(default=None)  # e.g., Sprinter
 
@@ -283,12 +285,14 @@ class Trip:
                 not self.stop_times or self.stop_times[-1].dts_dep <= stop_time.dts_arr
             )
         self.stop_times.append(stop_time)
+        self.stop_times_index[stop_time.stop] = len(self.stop_times) - 1
 
     def get_stop(self, stop: Stop) -> TripStopTime:
         """Get stop"""
-        stop_times = [st for st in self.stop_times if st.stop == stop]
-        return stop_times[0] if len(stop_times) > 0 else None
-
+        # stop_times = [st for st in self.stop_times if st.stop == stop]
+        # return stop_times[0] if len(stop_times) > 0 else None
+        return self.stop_times[self.stop_times_index[stop]]
+    
     def get_fare(self, depart_stop: Stop) -> int:
         """Get fare from depart_stop"""
         stop_time = self.get_stop(depart_stop)
@@ -776,7 +780,6 @@ class Journey:
         """Convert journey to list of legs as dict"""
         return [leg.to_dict(leg_index=idx) for idx, leg in enumerate(self.legs)]
 
-
 def pareto_set(labels: List[Label], keep_equal=False):
     """
     Find the pareto-efficient points
@@ -802,4 +805,4 @@ def pareto_set(labels: List[Label], keep_equal=False):
 
             is_efficient[i] = True  # And keep self
 
-    return [copy(label) for i, label in enumerate(labels) if is_efficient[i]]
+    return list(compress(labels, is_efficient))
