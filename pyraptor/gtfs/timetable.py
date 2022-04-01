@@ -209,8 +209,8 @@ def gtfs_to_pyraptor_timetable(
         station = Station(s.stop_name, s.stop_name)
         station = stations.add(station)
 
-        stop_id = f"{s.stop_name}-{s.platform_code}"
-        stop = Stop(s.stop_id, stop_id, station, s.platform_code)
+        stop_name = f"{s.stop_name}-{s.platform_code}"
+        stop = Stop(s.stop_id, stop_name, station, s.platform_code)
 
         station.add_stop(stop)
         stops.add(stop)
