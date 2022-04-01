@@ -35,7 +35,6 @@ class GtfsTimetable:
     stop_times = None
     stops = None
 
-
 def parse_arguments():
     """Parse arguments"""
     parser = argparse.ArgumentParser()
