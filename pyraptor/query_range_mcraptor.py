@@ -173,11 +173,15 @@ def run_range_mcraptor(
 
     logger.info(f"Journey calculation time: {perf_counter() - s}")
 
-    # Keep Pareto-optimal journeys
+    # Keep unique journeys
     for destination_station_name, journeys in journeys_to_destinations.items():
-        best_journeys = pareto_set(journeys, keep_equal=True)
-        journeys_to_destinations[destination_station_name] = best_journeys
+        unique_journeys = []
+        for journey in journeys:
+            if not journey in unique_journeys:
+                unique_journeys.append(journey)
 
+        journeys_to_destinations[destination_station_name] = unique_journeys
+        
     return journeys_to_destinations
 
 
