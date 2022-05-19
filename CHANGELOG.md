@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.8 (2022-05-19)
+### Fix
+* Remove duplicates in range_mcrapter ([`88ed285`](https://github.com/lmeulen/pyraptor/commit/88ed285bf01796f2cd81bb79fb5e14ca6cbd565f))
+
 ## v1.3.7 (2022-03-26)
 ### Fix
 * Some performance tweaks ([#38](https://github.com/lmeulen/pyraptor/issues/38)) ([`0b08bad`](https://github.com/lmeulen/pyraptor/commit/0b08bad6066c7be6d27e9774d57d09b0dca49f62))
