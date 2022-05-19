@@ -649,11 +649,6 @@ class Journey:
 
     legs: List[Leg] = field(default_factory=list)
 
-    @property
-    def criteria(self):
-        """Criteria"""
-        return [self.travel_time(), self.fare(), self.number_of_trips()]
-
     def __len__(self):
         return len(self.legs)
 
