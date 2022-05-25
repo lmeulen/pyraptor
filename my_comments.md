@@ -62,12 +62,17 @@ class Label:
         )
 ```
 
-- We could add an occupancy attribute to the class [Label](https://github.com/yunusskeete/pyraptor/blob/bb43ab268ea08930e829c3c88c92871f951312c3/pyraptor/model/structures.py#L561), which contains the (int) occupancy at stop `from_stop` (`p`)
+- We could add an occupancy attribute to the class [Label](https://github.com/yunusskeete/pyraptor/blob/bb43ab268ea08930e829c3c88c92871f951312c3/pyraptor/model/structures.py#L561), which contains the (int) occupancy at stop `from_stop` (`p`) <br> (see commented implementation - 25/05/2022)
 - We could add an occupancy attribute to the class [Trip](https://github.com/yunusskeete/pyraptor/blob/42e5303a52e0ce09349fe98fc4968ed38be281b1/pyraptor/model/structures.py#L246), which contains the (int) occupancy on trip, `trip` (`t(l)`)
 - In the `criteria` attribute of the class [Label](https://github.com/yunusskeete/pyraptor/blob/bb43ab268ea08930e829c3c88c92871f951312c3/pyraptor/model/structures.py#L561), we can either return a weighted combination of stop and trip occupancy (weighted by time spent?) or return both as separate criteria.
 
 
 To Do:
+1. (26/05/2022) Read through and understand all of the structures in [structures](/pyraptor/model/structures.py)
+1. (26/05/2022) Run a few raptor queries and display these structures as debug outputs
+1. (26/05/2022) Understand the FULL code workflow to go from query to route
+
+Then:
 1. Begin by creating a new branch in the [GitHub repository](https://github.com/yunusskeete/pyraptor) and implementing these new class attributes (assign all to `int: 0`)
 1. Ensure that these are handled correctly by [McRaptorAlgorithm](https://github.com/yunusskeete/pyraptor/blob/42e5303a52e0ce09349fe98fc4968ed38be281b1/pyraptor/model/mcraptor.py#L19), [Bag](https://github.com/yunusskeete/pyraptor/blob/bb43ab268ea08930e829c3c88c92871f951312c3/pyraptor/model/structures.py#L608), [pareto_set](https://github.com/yunusskeete/pyraptor/blob/bb43ab268ea08930e829c3c88c92871f951312c3/pyraptor/model/structures.py#L776) and [Label](https://github.com/yunusskeete/pyraptor/blob/bb43ab268ea08930e829c3c88c92871f951312c3/pyraptor/model/structures.py#L561).
 1. Get accurate values for occupancy (stop) and occupancy (trip) from database ()Extend the [Timetable](https://github.com/yunusskeete/pyraptor/blob/42e5303a52e0ce09349fe98fc4968ed38be281b1/pyraptor/model/structures.py#L24) class.

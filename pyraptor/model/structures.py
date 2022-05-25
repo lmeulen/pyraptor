@@ -44,7 +44,13 @@ class Timetable:
 
 @attr.s(repr=False, cmp=False)
 class Stop:
-    """Stop"""
+    """Stop
+    We shouldn't have an occupancy attribute per stop.
+    Instead, we should perform an occupancy lookup where necessary using a custom function to which we pass:
+    stop_time: TripStopTime,
+    station: TBD (from stop: Stop)
+    platform_code: TBD (from stop: Stop)
+    """
 
     id = attr.ib(default=None)
     name = attr.ib(default=None)
@@ -295,6 +301,12 @@ class Trip:
         """Get fare from depart_stop"""
         stop_time = self.get_stop(depart_stop)
         return 0 if stop_time is None else stop_time.fare
+    
+    ### LOOK AT STOP CLASS FIRST
+    # def get_stop_occupancy(self, depart_stop: Stop) -> int:
+    #     """Get stop occupancy from depart_stop"""
+    #     stop_occupancy = self.get_stop(depart_stop)
+    #     return 0 if stop_time is None else stop_time.occupancy
 
 
 class Trips:
@@ -565,6 +577,7 @@ class Label:
     fare: int  # total fare
     trip: Trip  # trip to take to obtain travel_time and fare
     from_stop: Stop  # stop to hop-on the trip
+    # occupancy: int  # 25/05/2022
     n_trips: int = 0
     infinite: bool = False
 
@@ -572,20 +585,31 @@ class Label:
     def criteria(self):
         """Criteria"""
         return [self.earliest_arrival_time, self.fare, self.n_trips]
+        # return [self.earliest_arrival_time, self.fare, self.n_trips, self.occupancy]
 
     def update(self, earliest_arrival_time=None, fare_addition=None, from_stop=None):
+    # def update(self, earliest_arrival_time=None, fare_addition=None, from_stop=None, occupancy_addition=None):
         """Update earliest arrival time and add fare_addition to fare"""
         return copy(
             Label(
                 earliest_arrival_time=earliest_arrival_time
                 if earliest_arrival_time is not None
                 else self.earliest_arrival_time,
+
                 fare=self.fare + fare_addition
                 if fare_addition is not None
                 else self.fare,
+
                 trip=self.trip,
+
                 from_stop=from_stop if from_stop is not None else self.from_stop,
+
+                # occupancy=self.occupancy + occupancy_addition
+                # if occupancy_addition is not None
+                # else self.occupancy
+
                 n_trips=self.n_trips,
+
                 infinite=self.infinite,
             )
         )
@@ -598,6 +622,7 @@ class Label:
                 fare=self.fare,
                 trip=trip,
                 from_stop=current_stop if self.trip != trip else self.from_stop,
+                # occupancy=self.occupancy
                 n_trips=self.n_trips + 1 if self.trip != trip else self.n_trips,
                 infinite=self.infinite,
             )
