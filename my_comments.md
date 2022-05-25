@@ -1,4 +1,4 @@
-### Deciphering:
+# Deciphering RAPTOR:
 (24/05/2022)
 
 <br>
@@ -78,7 +78,25 @@ To Do:
 
 <br>
 
+<br>
+
+<br>
+
+---
+
+<br>
+
+<br>
+
+<br>
+
+<br>
+
+<br>
+
 # Occupancy
+(25/05/2022)
+
 
 To add occupancy to the rMcRaptor, we will need to update the `Timetable` class which is inherited into all Raptor instances.
 
