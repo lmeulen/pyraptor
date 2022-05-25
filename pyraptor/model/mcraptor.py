@@ -30,6 +30,10 @@ class McRaptorAlgorithm:
         s = perf_counter()
 
         # Initialize empty bag, i.e. B_k(p) = [] for every k and p
+            # The bag, B_k(p), stores non-dominating labels, L, for each stop, p, in round k
+                # Is this the id of the trip which dominates? No.
+                    # It is a class with multiple attributes,
+                    # E.g. earliest_arrival_time, fare, n_trips (defined in criteria)
         bag_round_stop: Dict[int, Dict[Stop, Bag]] = {}
         for k in range(0, rounds + 1):
             bag_round_stop[k] = {}

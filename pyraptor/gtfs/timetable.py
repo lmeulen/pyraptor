@@ -54,7 +54,7 @@ def parse_arguments():
         help="Input directory",
     )
     parser.add_argument(
-        "-d", "--date", type=str, default="20210906", help="Departure date (yyyymmdd)"
+        "-d", "--date", type=str, default="20220517", help="Departure date (yyyymmdd)"
     )
     parser.add_argument("-a", "--agencies", nargs="+", default=["NS"])
     parser.add_argument("--icd", action="store_true", help="Add ICD fare(s)")
@@ -94,6 +94,8 @@ def read_gtfs_timetable(
         ["agency_id", "agency_name"]
     ]
     agency_ids = agencies_df.agency_id.values
+    assert len(agency_ids) > 0
+    logger.debug(f"Agencies found: {agency_ids}")
 
     # Read routes
     logger.debug("Read Routes")
@@ -103,6 +105,8 @@ def read_gtfs_timetable(
     routes = routes[
         ["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"]
     ]
+    assert len(routes) > 0
+    logger.debug(f"Routes found: {len(routes)} routes")
 
     # Read trips
     logger.debug("Read Trips")
@@ -119,6 +123,8 @@ def read_gtfs_timetable(
         ]
     ]
     trips["trip_short_name"] = trips["trip_short_name"].astype(int)
+    assert len(trips) > 0
+    logger.debug(f"Trips found: {len(trips)} trips")
 
     # Read calendar
     logger.debug("Read Calendar")
@@ -126,11 +132,15 @@ def read_gtfs_timetable(
     calendar = pd.read_csv(
         os.path.join(input_folder, "calendar_dates.txt"), dtype={"date": str}
     )
+    assert departure_date in calendar.date.values
+    logger.debug(f"Departure date ({departure_date}) in GTFS ({input_folder + 'calendar_dates.txt'})")
     calendar = calendar[calendar.service_id.isin(trips.service_id.values)]
 
     # Add date to trips and filter on departure date
     trips = trips.merge(calendar[["service_id", "date"]], on="service_id")
     trips = trips[trips.date == departure_date]
+    assert len(trips) > 0
+    logger.debug(f"Trips on departure date found: {len(trips)} trips")
 
     # Read stop times
     logger.debug("Read Stop Times")
@@ -151,6 +161,8 @@ def read_gtfs_timetable(
     # Convert times to seconds
     stop_times["arrival_time"] = stop_times["arrival_time"].apply(str2sec)
     stop_times["departure_time"] = stop_times["departure_time"].apply(str2sec)
+    assert len(stop_times) > 0
+    logger.debug(f"Stop times found: {len(stop_times)} stop times")
 
     # Read stops (platforms)
     logger.debug("Read Stops")
@@ -179,6 +191,8 @@ def read_gtfs_timetable(
     ]
 
     # Filter out the general station codes
+    stops = stops.loc[~stops.parent_station.isna()]
+    assert len(stops) > 0
     stops = stops.loc[~stops.parent_station.isna()]
 
     gtfs_timetable = GtfsTimetable()
