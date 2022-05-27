@@ -74,23 +74,28 @@ class RaptorAlgorithm:
             # Get list of stops to evaluate in the process
             logger.debug(f"Stops to evaluate count: {len(marked_stops)}")
 
-            # Get marked route stops
-            route_marked_stops = self.accumulate_routes(marked_stops)
+            if len(marked_stops) > 0:
+                # Get marked route stops
+                route_marked_stops = self.accumulate_routes(marked_stops)
 
-            # Update time to stops calculated based on stops reachable
-            bag_round_stop, marked_trip_stops = self.traverse_routes(
-                bag_round_stop, k, route_marked_stops
-            )
-            logger.debug(f"{len(marked_trip_stops)} reachable stops added")
+                # Update time to stops calculated based on stops reachable
+                bag_round_stop, marked_trip_stops = self.traverse_routes(
+                    bag_round_stop, k, route_marked_stops
+                )
+                logger.debug(f"{len(marked_trip_stops)} reachable stops added")
 
-            # Add footpath transfers and update
-            bag_round_stop, marked_transfer_stops = self.add_transfer_time(
-                bag_round_stop, k, marked_trip_stops
-            )
-            logger.debug(f"{len(marked_transfer_stops)} transferable stops added")
+                # Add footpath transfers and update
+                bag_round_stop, marked_transfer_stops = self.add_transfer_time(
+                    bag_round_stop, k, marked_trip_stops
+                )
+                logger.debug(f"{len(marked_transfer_stops)} transferable stops added")
 
-            marked_stops = set(marked_trip_stops).union(marked_transfer_stops)
-            logger.debug(f"{len(marked_stops)} stops to evaluate in next round")
+                marked_stops = set(marked_trip_stops).union(marked_transfer_stops)
+                logger.debug(f"{len(marked_stops)} stops to evaluate in next round")
+            else:
+                break
+
+        logger.info("Finish round-based algorithm to create bag with best labels")   
 
         return bag_round_stop
 
