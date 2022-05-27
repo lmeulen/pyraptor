@@ -24,8 +24,8 @@ def str2sec(time_str: str) -> int:
         # Has seconds
         hours, minutes, seconds = split_time
         return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
-    minutes, seconds = split_time
-    return int(minutes) * 60 + int(seconds)
+    hour, minutes = split_time
+    return int(hour) * 3600 + int(minutes) * 60
 
 
 def sec2str(scnds: int, show_sec: bool = False) -> str:
