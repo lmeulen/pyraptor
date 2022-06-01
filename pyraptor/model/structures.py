@@ -20,6 +20,11 @@ def same_type_and_id(first, second):
     return type(first) is type(second) and first.id == second.id
 
 
+def same_type_and_id2(first, second):
+    """Same type and ID"""
+    return type(first) is type(second) and first.id == second.id
+
+
 @dataclass
 class Timetable:
     """Timetable data"""
@@ -45,6 +50,9 @@ class Timetable:
 @attr.s(repr=False, cmp=False)
 class Stop:
     """Stop
+
+    A store of id, name, station, platform_code identifiers for PLATFORMS
+
     We shouldn't have an occupancy attribute per stop.
     Instead, we should perform an occupancy lookup where necessary using a custom function to which we pass:
     stop_time: TripStopTime,
@@ -52,11 +60,12 @@ class Stop:
     platform_code: TBD (from stop: Stop)
     """
 
-    id = attr.ib(default=None)
-    name = attr.ib(default=None)
-    station: Station = attr.ib(default=None)
-    platform_code = attr.ib(default=None)
-    index = attr.ib(default=None)
+    id = attr.ib(default=None) # EXAMPLE - '2427778'
+    name = attr.ib(default=None) # EXAMPLE - 'Rotterdam Centraal-9'
+    station: Station = attr.ib(default=None) # EXAMPLE - Station(Rotterdam Centraal)
+    ### I want to see how this is handled:
+    platform_code = attr.ib(default=None) # EXAMPLE - '9'
+    index = attr.ib(default=None) # EXAMPLE - 41
 
     def __hash__(self):
         return hash(self.id)
@@ -71,17 +80,28 @@ class Stop:
 
 
 class Stops:
-    """Stops"""
+    """Stops
+    
+    A collection (dictionary) of Stop class objects."""
 
     def __init__(self):
-        self.set_idx = dict()
-        self.set_index = dict()
+        self.set_idx = dict() # EXAMPLE - set_idx: {'2324635': Stop(Vlissingen-3 [2324635]), '2422053': Stop(Dordrecht-2 [2422053]), '2324687': Stop(Wijhe-2 [2324687]), ... }
+        self.set_index = dict() # EXAMPLE - set_index: {1: Stop(Vlissingen-3 [2324635]), 2: Stop(Dordrecht-2 [2422053]), 3: Stop(Wijhe-2 [2324687]), ... }
         self.last_index = 1
 
     def __repr__(self):
         return f"Stops(n_stops={len(self.set_idx)})"
 
     def __getitem__(self, stop_id):
+        """Get stop by stip_id
+        
+        EXAMPLE
+        Args:
+            - stop_id='2427778'
+        
+        Returns:
+            - Stop(Rotterdam Centraal-9 [2427778])
+        """
         return self.set_idx[stop_id]
 
     def __len__(self):
@@ -91,14 +111,30 @@ class Stops:
         return iter(self.set_idx.values())
 
     def get(self, stop_id):
-        """Get stop"""
+        """Get stop by stop_id
+        
+        EXAMPLE
+        Args:
+            - stop_id='2427778'
+        
+        Returns:
+            - Stop(Rotterdam Centraal-9 [2427778])
+        """
         if stop_id not in self.set_idx:
             raise ValueError(f"Stop ID {stop_id} not present in Stops")
         stop = self.set_idx[stop_id]
         return stop
 
     def get_by_index(self, stop_index) -> Stop:
-        """Get stop by index"""
+        """Get stop by index
+        
+        EXAMPLE
+        Args:
+            - stop_index=700
+        
+        Returns:
+            - Stop(Lelystad Centrum-1 [2422110])
+        """
         return self.set_index[stop_index]
 
     def add(self, stop):
@@ -115,11 +151,11 @@ class Stops:
 
 @attr.s(repr=False, cmp=False)
 class Station:
-    """Stop dataclass"""
+    """Stop dataclass - a collection (list) of Stops class objects"""
 
-    id = attr.ib(default=None)
-    name = attr.ib(default=None)
-    stops = attr.ib(default=attr.Factory(list))
+    id = attr.ib(default=None) # EXAMPLE - 'Rotterdam Centraal'
+    name = attr.ib(default=None) # EXAMPLE - 'Rotterdam Centraal'
+    stops = attr.ib(default=attr.Factory(list)) # EXAMPLE - [Stop(Rotterdam Centraal-9 [2427778]), Stop(Rotterdam Centraal-14 [2427770]), Stop(Rotterdam Centraal-16 [2422141]), Stop(Rotterdam Centraal-2 [2427775]), Stop(Rotterdam Centraal-15 [2422140]), Stop(Rotterdam Centraal-13 [2427769]), Stop(Rotterdam Centraal-12 [2427768]), Stop(Rotterdam Centraal-6 [2324348]), Stop(Rotterdam Centraal-11 [2427767]), Stop(Rotterdam Centraal-7 [2427776]), Stop(Rotterdam Centraal-8 [2427777]), Stop(Rotterdam Centraal-3 [2324346]), Stop(Rotterdam Centraal-4 [2324347])]
 
     def __hash__(self):
         return hash(self.id)
@@ -137,7 +173,7 @@ class Station:
 
 
 class Stations:
-    """Stations"""
+    """Stations - a collection (Dict[common_name: str, station: Station]) of Station instances"""
 
     def __init__(self):
         self.set_idx = dict()
@@ -162,8 +198,17 @@ class Stations:
             self.set_idx[station.id] = station
         return station
 
-    def get(self, station: Station):
-        """Get station"""
+    # def get(self, station: Station):
+    def get(self, station: str):
+        """Get station
+        
+        EXAMPLE
+        Args:
+            -   station='Rotterdam Centraal'
+            
+        Returns:
+            -   Station(Rotterdam Centraal)
+        """
         if isinstance(station, Station):
             station = station.id
         if station not in self.set_idx:
@@ -171,22 +216,41 @@ class Stations:
         return self.set_idx[station]
 
     def get_stops(self, station_name):
-        """Get all stop ids from station, i.e. platform stop ids belonging to station"""
+        """Get all stop ids from station, i.e. platform stop ids belonging to station
+        
+        EXAMPLE
+        Args:
+            -   station_name='Rotterdam Centraal'
+
+        Returns:
+            -   [Stop(Rotterdam Centraal-9 [2427778]), Stop(Rotterdam Centraal-14 [2427770]), Stop(Rotterdam Centraal-16 [2422141]), Stop(Rotterdam Centraal-2 [2427775]), Stop(Rotterdam Centraal-15 [2422140]), Stop(Rotterdam Centraal-13 [2427769]), Stop(Rotterdam Centraal-12 [2427768]), Stop(Rotterdam Centraal-6 [2324348]), Stop(Rotterdam Centraal-11 [2427767]), Stop(Rotterdam Centraal-7 [2427776]), Stop(Rotterdam Centraal-8 [2427777]), Stop(Rotterdam Centraal-3 [2324346]), Stop(Rotterdam Centraal-4 [2324347])]
+        """
         return self.set_idx[station_name].stops
 
 
 @attr.s(repr=False)
 class TripStopTime:
-    """Trip Stop"""
+    """Trip Stop
+    
+    A store of trip, stopidx, stop, arrival, departure annd fare attributes for a trip stop
+    
+    COULD INCLUDE OCCUPANCY HERE"""
 
-    trip: Trip = attr.ib(default=attr.NOTHING)
-    stopidx = attr.ib(default=attr.NOTHING)
-    stop = attr.ib(default=attr.NOTHING)
-    dts_arr = attr.ib(default=attr.NOTHING)
-    dts_dep = attr.ib(default=attr.NOTHING)
-    fare = attr.ib(default=0.0)
+    trip: Trip = attr.ib(default=attr.NOTHING) # EXAMPLE: Trip(hint=1178, stop_times=7)
+    stopidx = attr.ib(default=attr.NOTHING) # EXAMPLE: 3
+    stop = attr.ib(default=attr.NOTHING) # EXAMPLE: Stop(Rotterdam Centraal-9 [2427778])
+    dts_arr = attr.ib(default=attr.NOTHING) # EXAMPLE: 81960
+    dts_dep = attr.ib(default=attr.NOTHING) # EXAMPLE: 82080
+    fare = attr.ib(default=0.0) # EXAMPLE: 0
+
+    # def __init__(self):
+    #     self.__class__.__hash__ = TripStopTime.__hash__  # <----- SOLUTION
 
     def __hash__(self):
+        return hash((self.trip, self.stopidx))
+
+    def hash(self):
+        # print((self.trip, self.stopidx))
         return hash((self.trip, self.stopidx))
 
     def __repr__(self):
@@ -200,8 +264,11 @@ class TripStopTime:
         )
 
 
+
 class TripStopTimes:
-    """Trip Stop Times"""
+    """Trip Stop Times
+    
+    A collection (dict) of TripStopTime objects - used for indexing/finding trips in time range(s)"""
 
     def __init__(self):
         self.set_idx: Dict[Tuple[Trip, int], TripStopTime] = dict()
@@ -210,6 +277,7 @@ class TripStopTimes:
     def __repr__(self):
         return f"TripStoptimes(n_tripstoptimes={len(self.set_idx)})"
 
+    ### DOESN'T WORK
     def __getitem__(self, trip_id):
         return self.set_idx[trip_id]
 
@@ -225,9 +293,19 @@ class TripStopTimes:
         self.stop_trip_idx[trip_stop_time.stop].append(trip_stop_time)
 
     def get_trip_stop_times_in_range(self, stops, dep_secs_min, dep_secs_max):
-        """Returns all trip stop times with departure time within range"""
+        """Returns all trip stop times with departure time within range
+
+        EXAMPLE
+        Args:
+            -   stops=timetable.stations.get_stops('Rotterdam Centraal')
+            -   dep_secs_min=str2sec('10:00:00')
+            -   dep_secs_max=str2sec('10:04:00')
+
+        Returns:
+            -   [TripStopTime(trip_id=4031:545, stopidx=22, stop_id=2422141, dts_arr=36240, dts_dep=36240, fare=0), TripStopTime(trip_id=3237:2088, stopidx=0, stop_id=2427778, dts_arr=36060, dts_dep=36060, fare=0)]
+        """
         in_window = [
-            tst
+            tst # TripStop/time
             for tst in self
             if tst.dts_dep >= dep_secs_min
             and tst.dts_dep <= dep_secs_max
@@ -236,13 +314,31 @@ class TripStopTimes:
         return in_window
 
     def get_earliest_trip(self, stop: Stop, dep_secs: int) -> Trip:
-        """Earliest trip"""
+        """Earliest trip
+        
+        EXAMPLE
+        Args:
+            -   stop=timetable.stations.get_stops('Rotterdam Centraal')[0]
+            -   dep_secs=str2sec('10:00')
+        
+        Returns:
+            -   Trip(hint=1178, stop_times=7)
+        """
         trip_stop_times = self.stop_trip_idx[stop]
         in_window = [tst for tst in trip_stop_times if tst.dts_dep >= dep_secs]
         return in_window[0].trip if len(in_window) > 0 else None
 
     def get_earliest_trip_stop_time(self, stop: Stop, dep_secs: int) -> TripStopTime:
-        """Earliest trip stop time"""
+        """Earliest trip stop time
+        
+        EXAMPLE
+        Args:
+            -   stop=timetable.stations.get_stops('Rotterdam Centraal')[0]
+            -   dep_secs=str2sec('10:00')
+        
+        Returns:
+            -   TripStopTime(trip_id=1178:50, stopidx=3, stop_id=2427778, dts_arr=81960, dts_dep=82080, fare=0)
+        """
         trip_stop_times = self.stop_trip_idx[stop]
         in_window = [tst for tst in trip_stop_times if tst.dts_dep >= dep_secs]
         return in_window[0] if len(in_window) > 0 else None
@@ -250,13 +346,15 @@ class TripStopTimes:
 
 @attr.s(repr=False, cmp=False)
 class Trip:
-    """Trip"""
+    """Trip
+    
+    Details trip id, stop_times and index for a trip"""
 
-    id = attr.ib(default=None)
-    stop_times = attr.ib(default=attr.Factory(list))
-    stop_times_index = attr.ib(default=attr.Factory(dict))
-    hint = attr.ib(default=None)
-    long_name = attr.ib(default=None)  # e.g., Sprinter
+    id = attr.ib(default=None) # EXAMPLE - 50
+    stop_times = attr.ib(default=attr.Factory(list)) # EXAMPLE - [TripStopTime(trip_id=1178:50, stopidx=0, stop_id=2323599, dts_arr=78240, dts_dep=78240, fare=0), TripStopTime(trip_id=1178:50, stopidx=1, stop_id=2324474, dts_arr=79500, dts_dep=79740, fare=0), ... ]
+    stop_times_index = attr.ib(default=attr.Factory(dict)) # EXAMPLE - Stop(Eindhoven Centraal-5 [2323599]): 0, Stop(Tilburg-2 [2324474]): 1, ... }
+    hint = attr.ib(default=None) # EXAMPLE - 1178
+    long_name = attr.ib(default=None) # EXAMPLE1 - 'Intercity' EXAMPLE2 - 'Sprinter'
 
     def __hash__(self):
         return hash(self.id)
@@ -270,7 +368,16 @@ class Trip:
             stop_times=len(self.stop_times),
         )
 
-    def __getitem__(self, n):
+    # def __getitem__(self, n):
+    def __getitem__(self, n: int) -> TripStopTime:
+        """
+        EXAMPLE
+        Args:
+            -   n=1
+        
+        Returns:
+            -   TripStopTime(trip_id=1178:50, stopidx=1, stop_id=2324474, dts_arr=79500, dts_dep=79740, fare=0)
+        """
         return self.stop_times[n]
 
     def __len__(self):
@@ -280,7 +387,12 @@ class Trip:
         return iter(self.stop_times)
 
     def trip_stop_ids(self):
-        """Tuple of all stop ids in trip"""
+        """Tuple of all stop ids in trip
+        
+        EXAMPLE
+        Returns:
+            -   ('2323599', '2324474', '2422045', '2427778', '2422319', '2422082', '2423310')
+        """
         return tuple([s.stop.id for s in self.stop_times])
 
     def add_stop_time(self, stop_time: TripStopTime):
@@ -294,11 +406,27 @@ class Trip:
         self.stop_times_index[stop_time.stop] = len(self.stop_times) - 1
 
     def get_stop(self, stop: Stop) -> TripStopTime:
-        """Get stop"""
+        """Get stop
+        
+        EXAMPLE
+        Args:
+            -   stop=timetable.stations.get_stops('Rotterdam Centraal')[0]
+        
+        Returns:
+            -   TripStopTime(trip_id=1178:50, stopidx=3, stop_id=2427778, dts_arr=81960, dts_dep=82080, fare=0)
+        """
         return self.stop_times[self.stop_times_index[stop]]
     
     def get_fare(self, depart_stop: Stop) -> int:
-        """Get fare from depart_stop"""
+        """Get fare from depart_stop
+        
+        EXAMPLE
+        Args:
+            -   stop=timetable.stations.get_stops('Rotterdam Centraal')[0]
+        
+        Returns:
+            -   0
+        """
         stop_time = self.get_stop(depart_stop)
         return 0 if stop_time is None else stop_time.fare
     
@@ -310,16 +438,27 @@ class Trip:
 
 
 class Trips:
-    """Trips"""
+    """Trips
+    
+    A collection (dict) of Trip instances and store (int) of last index"""
 
     def __init__(self):
-        self.set_idx = dict()
+        self.set_idx = dict() # EXAMPLE - 1: Trip(hint=3984, stop_times=2), 2: Trip(hint=3983, stop_times=2), 3: Trip(hint=3988, stop_times=2), 4: Trip(hint=7054, stop_times=9), 5: Trip(hint=3980, stop_times=2), ... }
         self.last_id = 1
 
     def __repr__(self):
         return f"Trips(n_trips={len(self.set_idx)})"
 
-    def __getitem__(self, trip_id):
+    # def __getitem__(self, trip_id):
+    def __getitem__(self, trip_id: int):
+        """
+        EXAMPLE
+        Args:
+            -   trip_id=1
+        
+        Returns:
+            -   Trip(hint=3984, stop_times=2)
+        """
         return self.set_idx[trip_id]
 
     def __len__(self):
@@ -338,7 +477,9 @@ class Trips:
 
 @attr.s(repr=False, cmp=False)
 class Route:
-    """Route"""
+    """Route
+    
+    A collection (list) of trips and stops, and a collection (dict) of stop orders."""
 
     id = attr.ib(default=None)
     trips = attr.ib(default=attr.Factory(list))
@@ -354,7 +495,8 @@ class Route:
     def __repr__(self):
         return "Route(id={0.id}, trips={trips})".format(self, trips=len(self.trips),)
 
-    def __getitem__(self, n):
+    # def __getitem__(self, n):
+    def __getitem__(self, n: int) -> Trip:
         return self.trips[n]
 
     def __len__(self):
@@ -395,18 +537,29 @@ class Route:
 
 
 class Routes:
-    """Routes"""
+    """Routes
+    
+    A collection of Route class objects.
+    You can get the routes that serve any given stop."""
 
     def __init__(self):
-        self.set_idx = dict()
-        self.set_stops_idx = dict()
-        self.stop_to_routes = defaultdict(list)  # {Stop: [Route]}
+        self.set_idx = dict() # EXAMPLE - {1: Route(id=1, trips=4), 2: Route(id=2, trips=5), 3: Route(id=3, trips=22), 4: Route(id=4, trips=24), 5: Route(id=5, trips=3), ... }
+        self.set_stops_idx = dict() # EXAMPLE - {('2323896', '2324446'): Route(id=1, trips=4), ('2324446', '2323896'): Route(id=2, trips=5), ('2422000', '2324675', '2324317', '2323884', '2323536', '2422066', '2423717', '2323186', '2422569'): Route(id=3, trips=22), ('2323875', '2323872', '2324252', '2324255', '2324258', '2324750', '2324748', '2323264', '2422025', '2422148', '2422334', '2422220', '2422223', '2324040', '2323547', '2324640', '2323757', '2423355', '2423318'): Route(id=4, trips=24), ('2422147', '2422029', '2422282', '2422163', '2323925', '2423303', '2323857', '2323493', '2323906', '2323377', '2324608'): Route(id=5, trips=3), ... }
+        self.stop_to_routes = defaultdict(list) # {Stop: [Route]}  EXAMPLE - {Stop(Heerlen-5 [2323896]): [Route(id=1, trips=4), Route(id=2, trips=5), Route(id=26, trips=1), Route(id=198, trips=1), Route(id=211, trips=14), Route(id=237, trips=2), Route(id=296, trips=17), Route(id=371, trips=3), Route(id=428, trips=1), Route(id=466, trips=1), Route(id=528, trips=1), Route(id=534, trips=2), Route(id=558, trips=1), Route(id=564, trips=2), Route(id=571, trips=3), Route(id=701, trips=5), Route(id=723, trips=1), Route(id=853, trips=1)], ... }
         self.last_id = 1
 
     def __repr__(self):
         return f"Routes(n_routes={len(self.set_idx)})"
 
-    def __getitem__(self, route_id):
+    def __getitem__(self, route_id: int):
+        """
+        EXAMPLE
+        Args:
+            -   route_id=1
+        
+        Returns:
+            -   Route(id=1, trips=4)
+        """
         return self.set_idx[route_id]
 
     def __len__(self):
@@ -442,18 +595,30 @@ class Routes:
         return route
 
     def get_routes_of_stop(self, stop: Stop):
-        """Get routes of stop"""
+        """Get routes of stop
+        
+        EXAMPLE
+        Args:
+            -   stop=timetable.stations.get_stops('Heerlen')[0]
+            
+        Returns:
+            -   [Route(id=1, trips=4), Route(id=2, trips=5), Route(id=26, trips=1), Route(id=198, trips=1), Route(id=211, trips=14), Route(id=237, trips=2), Route(id=296, trips=17), Route(id=371, trips=3), Route(id=428, trips=1), Route(id=466, trips=1), Route(id=528, trips=1), Route(id=534, trips=2), Route(id=558, trips=1), Route(id=564, trips=2), Route(id=571, trips=3), Route(id=701, trips=5), Route(id=723, trips=1), Route(id=853, trips=1)]
+        """
         return self.stop_to_routes[stop]
 
 
 @attr.s(repr=False, cmp=False)
 class Transfer:
-    """Transfer"""
+    """Transfer
+    
+    Details id, from/to stop and layovertime
+    
+    LAYOVER TIME IS USEFUL FOR OCCUPANCY PENALTY"""
 
-    id = attr.ib(default=None)
-    from_stop = attr.ib(default=None)
-    to_stop = attr.ib(default=None)
-    layovertime = attr.ib(default=300)
+    id = attr.ib(default=None) # EXAMPLE - 1
+    from_stop = attr.ib(default=None) # EXAMPLE - Stop(Vlissingen-3 [2324635])
+    to_stop = attr.ib(default=None) # EXAMPLE - Stop(Vlissingen-1 [2324633])
+    layovertime = attr.ib(default=300) # EXAMPLE - 120
 
     def __hash__(self):
         return hash(self.id)
@@ -466,17 +631,27 @@ class Transfer:
 
 
 class Transfers:
-    """Transfers"""
+    """Transfers
+    
+    A collection (dict) of idxs, stop_to_stop_idxs and last id (int)"""
 
     def __init__(self):
-        self.set_idx = dict()
-        self.stop_to_stop_idx = dict()
-        self.last_id = 1
+        self.set_idx = dict() # EAMPLE - {1: Transfer(from_stop=Stop(Vlissingen-3 [2324635]), to_stop=Stop(Vlissingen-1 [2324633]), layovertime=120), ... }
+        self.stop_to_stop_idx = dict() # EXAMPLE - {(Stop(Vlissingen-3 [2324635]), Stop(Vlissingen-1 [2324633])): Transfer(from_stop=Stop(Vlissingen-3 [2324635]), to_stop=Stop(Vlissingen-1 [2324633]), layovertime=120), ... }
+        self.last_id = 1 # EXAMPLE - 3037
 
     def __repr__(self):
         return f"Transfers(n_transfers={len(self.set_idx)})"
 
     def __getitem__(self, transfer_id):
+        """
+        EXAMPLE
+        Args:
+            -   transfer_id=1
+        
+        Returns:
+            -   Transfer(from_stop=Stop(Vlissingen-3 [2324635]), to_stop=Stop(Vlissingen-1 [2324633]), layovertime=120)
+        """
         return self.set_idx[transfer_id]
 
     def __len__(self):
@@ -493,9 +668,18 @@ class Transfers:
         self.last_id += 1
 
 
+###############################################################################
+
+# ROUTING STUFF
+
+###############################################################################
 @dataclass
 class Leg:
-    """Leg"""
+    """Leg
+    
+    Details from, to (Stop), Trip, earliest arrival, n_trips and fare
+    
+    MAY HELP WITH OCCUPANCY"""
 
     from_stop: Stop
     to_stop: Stop
@@ -512,14 +696,14 @@ class Leg:
     @property
     def dep(self):
         """Departure time"""
-        return [
+        return [ # tst = TripStopTime
             tst.dts_dep for tst in self.trip.stop_times if self.from_stop == tst.stop
         ][0]
 
     @property
     def arr(self):
         """Arrival time"""
-        return [
+        return [ # tst = TripStopTime
             tst.dts_arr for tst in self.trip.stop_times if self.to_stop == tst.stop
         ][0]
 
@@ -571,7 +755,9 @@ class Leg:
 
 @dataclass(frozen=True)
 class Label:
-    """Label"""
+    """Label
+    
+    INTEGRAL TO OCCUPANCY"""
 
     earliest_arrival_time: int
     fare: int  # total fare
@@ -633,6 +819,8 @@ class Label:
 class Bag:
     """
     Bag B(k,p) or route bag B_r
+
+    A collection (list) of labels
     """
 
     labels: List[Label] = field(default_factory=list)
@@ -670,6 +858,8 @@ class Bag:
 class Journey:
     """
     Journey from origin to destination specified as Legs
+
+    INTEGRAL TO OCCUPANCY
     """
 
     legs: List[Leg] = field(default_factory=list)
@@ -751,6 +941,7 @@ class Journey:
                 and (self.arr() <= jrny.arr())
                 and (self.fare() <= jrny.fare())
                 and (self.number_of_trips() <= jrny.number_of_trips())
+                # and (self.occupancy() <= jrny.occupancy)
             )
             and (self != jrny)
             else False

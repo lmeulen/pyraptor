@@ -62,8 +62,9 @@ class RaptorAlgorithm:
         logger.debug(f"Starting from Stop IDs: {str(from_stops)}")
         marked_stops = []
         for from_stop in from_stops:
-            bag_round_stop[0][from_stop].update(dep_secs, None, None)
-            self.bag_star[from_stop].update(dep_secs, None, None)
+            # Update Label with departure time
+            bag_round_stop[0][from_stop].update(earliest_arrival_time=dep_secs, fare_addition=None, from_stop=None) # bag_round_stop[0][from_stop].update(dep_secs, None, None)
+            self.bag_star[from_stop].update(earliest_arrival_time=dep_secs, fare_addition=None, from_stop=None) # self.bag_star[from_stop].update(dep_secs, None, None)
             marked_stops.append(from_stop)
 
         # Run rounds
@@ -74,8 +75,14 @@ class RaptorAlgorithm:
             # Get list of stops to evaluate in the process
             logger.debug(f"Stops to evaluate count: {len(marked_stops)}")
 
-            # Get marked route stops
+            # Get marked route stops - A list of routes serving marked stops from previous round, i.e. Q
             route_marked_stops = self.accumulate_routes(marked_stops)
+
+
+
+            ### HERE ###########################################################
+
+
 
             # Update time to stops calculated based on stops reachable
             bag_round_stop, marked_trip_stops = self.traverse_routes(
@@ -101,7 +108,12 @@ class RaptorAlgorithm:
             routes_serving_stop = self.timetable.routes.get_routes_of_stop(marked_stop)
             for route in routes_serving_stop:
                 # Check if new_stop is before existing stop in Q
+
+                # Get value for key (route), return None if key not in dictionary
                 current_stop_for_route = route_marked_stops.get(route, None)  # p'
+                # If we haven't marked this route stop
+                # or
+                # if current_stop_for_route comes after the marked stop???
                 if (current_stop_for_route is None) or (
                     route.stop_index(current_stop_for_route)
                     > route.stop_index(marked_stop)

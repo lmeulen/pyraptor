@@ -86,9 +86,11 @@ def read_gtfs_timetable(
 
     logger.info("Read GTFS data")
 
-    # Read agencies
+
+    # AGENCY.TXT
     logger.debug("Read Agencies")
 
+    # Load dataframe and slice to specified agencies
     agencies_df = pd.read_csv(os.path.join(input_folder, "agency.txt"))
     agencies_df = agencies_df.loc[agencies_df["agency_name"].isin(agencies)][
         ["agency_id", "agency_name"]
@@ -97,9 +99,11 @@ def read_gtfs_timetable(
     assert len(agency_ids) > 0
     logger.debug(f"Agencies found: {agency_ids}")
 
-    # Read routes
+
+    # ROUTES.TXT
     logger.debug("Read Routes")
 
+    # Get routes by agency
     routes = pd.read_csv(os.path.join(input_folder, "routes.txt"))
     routes = routes[routes.agency_id.isin(agency_ids)]
     routes = routes[
@@ -108,9 +112,11 @@ def read_gtfs_timetable(
     assert len(routes) > 0
     logger.debug(f"Routes found: {len(routes)} routes")
 
-    # Read trips
+
+    # TRIPS.TXT
     logger.debug("Read Trips")
 
+    # Get trips in routes
     trips = pd.read_csv(os.path.join(input_folder, "trips.txt"))
     trips = trips[trips.route_id.isin(routes.route_id.values)]
     trips = trips[
@@ -126,9 +132,11 @@ def read_gtfs_timetable(
     assert len(trips) > 0
     logger.debug(f"Trips found: {len(trips)} trips")
 
-    # Read calendar
+
+    # CALENDAR.TXT
     logger.debug("Read Calendar")
 
+    # Get calendar from service_id of trips (correct dates)
     calendar = pd.read_csv(
         os.path.join(input_folder, "calendar_dates.txt"), dtype={"date": str}
     )
@@ -142,9 +150,11 @@ def read_gtfs_timetable(
     assert len(trips) > 0
     logger.debug(f"Trips on departure date found: {len(trips)} trips")
 
-    # Read stop times
+
+    # STOP_TIMES.TXT
     logger.debug("Read Stop Times")
 
+    # Get stop times of trips
     stop_times = pd.read_csv(
         os.path.join(input_folder, "stop_times.txt"), dtype={"stop_id": str}
     )
@@ -158,13 +168,15 @@ def read_gtfs_timetable(
             "departure_time",
         ]
     ]
-    # Convert times to seconds
+    # Convert times to seconds past midnight
     stop_times["arrival_time"] = stop_times["arrival_time"].apply(str2sec)
     stop_times["departure_time"] = stop_times["departure_time"].apply(str2sec)
     assert len(stop_times) > 0
     logger.debug(f"Stop times found: {len(stop_times)} stop times")
 
-    # Read stops (platforms)
+
+    # PLATFORMS (STOPS.TXT)
+    # NOTE: Platforms are found from unique `stop_id`s
     logger.debug("Read Stops")
 
     stops_full = pd.read_csv(
@@ -201,6 +213,13 @@ def read_gtfs_timetable(
     gtfs_timetable.stops = stops
 
     return gtfs_timetable
+
+
+###########################################################################################
+
+# MAKE YOUR OWN PANDAS TABLES FOR REFERENCE IN A JUPYTER NOTEBOOK
+
+###########################################################################################
 
 
 def gtfs_to_pyraptor_timetable(
