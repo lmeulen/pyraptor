@@ -63,8 +63,10 @@ class RaptorAlgorithm:
         marked_stops = []
         for from_stop in from_stops:
             # Update Label with departure time
-            bag_round_stop[0][from_stop].update(earliest_arrival_time=dep_secs, fare_addition=None, from_stop=None) # bag_round_stop[0][from_stop].update(dep_secs, None, None)
-            self.bag_star[from_stop].update(earliest_arrival_time=dep_secs, fare_addition=None, from_stop=None) # self.bag_star[from_stop].update(dep_secs, None, None)
+            # bag_round_stop[0][from_stop].update(earliest_arrival_time=dep_secs, fare_addition=None, from_stop=None)
+            bag_round_stop[0][from_stop].update(dep_secs, None, None)
+            # self.bag_star[from_stop].update(earliest_arrival_time=dep_secs, fare_addition=None, from_stop=None)
+            self.bag_star[from_stop].update(dep_secs, None, None)
             marked_stops.append(from_stop)
 
         # Run rounds
