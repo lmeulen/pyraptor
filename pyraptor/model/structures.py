@@ -318,10 +318,13 @@ class Trips:
 
     def add(self, trip):
         """Add trip"""
-        assert len(trip) >= 2, "must have 2 stop times"
-        trip.id = self.last_id
-        self.set_idx[trip.id] = trip
-        self.last_id += 1
+        # assert len(trip) >= 2, f"must have 2 stop times, trip={trip}"
+        if len(trip) >= 2:
+            trip.id = self.last_id
+            self.set_idx[trip.id] = trip
+            self.last_id += 1
+        else:
+            logger.warning("Trip contains less than 2 stop times")
 
 
 @attr.s(repr=False, cmp=False)
