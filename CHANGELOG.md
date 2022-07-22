@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.10 (2022-07-22)
+### Fix
+* Ignore incomplete trips ([#44](https://github.com/lmeulen/pyraptor/issues/44)) ([`7109f73`](https://github.com/lmeulen/pyraptor/commit/7109f732b4f1aaace1fd8f1fd69e87413b0e77df))
+
 ## v1.3.9 (2022-07-22)
 ### Fix
 * Raptor break for loop if improvements = 0 ([#43](https://github.com/lmeulen/pyraptor/issues/43)) ([`de68e03`](https://github.com/lmeulen/pyraptor/commit/de68e034aefd643d8086e62d9ddea1ffafa958c1))
