@@ -118,7 +118,7 @@ def read_gtfs_timetable(
             "trip_long_name",
         ]
     ]
-    trips["trip_short_name"] = trips["trip_short_name"].astype(int)
+    trips["trip_short_name"] = trips["trip_short_name"].astype("Int64")
 
     # Read calendar
     logger.debug("Read Calendar")
