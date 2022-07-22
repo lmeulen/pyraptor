@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v1.3.9 (2022-07-22)
+### Fix
+* Raptor break for loop if improvements = 0 ([#43](https://github.com/lmeulen/pyraptor/issues/43)) ([`de68e03`](https://github.com/lmeulen/pyraptor/commit/de68e034aefd643d8086e62d9ddea1ffafa958c1))
+
 ## v1.3.8 (2022-05-19)
 ### Fix
 * Remove duplicates in range_mcrapter ([`88ed285`](https://github.com/lmeulen/pyraptor/commit/88ed285bf01796f2cd81bb79fb5e14ca6cbd565f))
