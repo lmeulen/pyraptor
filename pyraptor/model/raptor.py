@@ -33,7 +33,8 @@ class Label:
         return self.earliest_arrival_time <= other.earliest_arrival_time
 
     def __repr__(self) -> str:
-        return f"Label(earliest_arrival_time={self.earliest_arrival_time}, trip={self.trip}, from_stop={self.from_stop})"
+        return f"Label(earliest_arrival_time={self.earliest_arrival_time}, trip={self.trip}, " \
+               f"from_stop={self.from_stop})"
 
 
 class RaptorAlgorithm:
@@ -43,7 +44,7 @@ class RaptorAlgorithm:
         self.timetable = timetable
         self.bag_star = None
 
-    def run(self, from_stops, dep_secs, rounds) -> Dict[int, Dict[Stop, Label]]:
+    def run(self, from_stops, dep_secs, rounds) -> Dict[Stop, Label]:
         """Run Round-Based Algorithm"""
 
         # Initialize empty bag of labels, i.e. B_k(p) = Label() for every k and p
@@ -67,6 +68,7 @@ class RaptorAlgorithm:
             marked_stops.append(from_stop)
 
         # Run rounds
+        k = 0
         for k in range(1, rounds + 1):
             logger.info(f"Analyzing possibilities round {k}")
             bag_round_stop[k] = deepcopy(bag_round_stop[k - 1])
@@ -95,9 +97,9 @@ class RaptorAlgorithm:
             else:
                 break
 
-        logger.info("Finish round-based algorithm to create bag with best labels")   
+        logger.info("Finish round-based algorithm to create bag with best labels")
 
-        return bag_round_stop
+        return bag_round_stop[k]
 
     def accumulate_routes(self, marked_stops: List[Stop]) -> List[Tuple[Route, Stop]]:
         """Accumulate routes serving marked stops from previous round, i.e. Q"""

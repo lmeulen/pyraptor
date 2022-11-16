@@ -152,8 +152,7 @@ def run_range_raptor(
 
         # Run Round-Based Algorithm
         raptor = RaptorAlgorithm(timetable)
-        bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
-        best_labels = bag_round_stop[rounds]
+        best_labels = raptor.run(from_stops, dep_secs, rounds)
 
         # Determine the best destination ID, destination is a platform
         for destination_station_name, to_stops in destination_stops.items():

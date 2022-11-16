@@ -111,8 +111,7 @@ def run_raptor(
 
     # Run Round-Based Algorithm
     raptor = RaptorAlgorithm(timetable)
-    bag_round_stop = raptor.run(from_stops, dep_secs, rounds)
-    best_labels = bag_round_stop[rounds]
+    best_labels = raptor.run(from_stops, dep_secs, rounds)
 
     # Determine the best journey to all possible destination stations
     journey_to_destinations = dict()
